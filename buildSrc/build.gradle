@@ -1,0 +1,7 @@
+subprojects {
+    // DO NOT REMOVE.
+    // adds this gradle plugin subproject to the main set of runtime dependencies of buildSrc. If this isn't here, project won't build
+    rootProject.dependencies {
+        runtime project(path)
+    }
+}

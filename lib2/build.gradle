@@ -1,0 +1,5 @@
+apply plugin: 'java-library'
+apply plugin: 'bazelleaf'
+
+sourceCompatibility = "1.7"
+targetCompatibility = "1.7"

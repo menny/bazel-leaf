@@ -1,0 +1,49 @@
+# Prefix ID with the client so we don't get duplicates
+id: android-buildsrc-bazelleaf
+
+# A brief description of what the module does.
+description: Build related scripts and configurations
+
+# "System" in this case will be the host project for this module.
+system: client-android
+
+# The "owner" should be the squad that maintains the client container
+# (iOS Infra, Marvin, etc). Not every squad has an LDAP group. Until
+# that is the case, I think it makes sense to use this default.
+owner: nycinfra
+
+# If your module can be included by other modules not owned by your
+# squad, this should be set to "public". There aren't too many cases
+# where "private" would be necessary on the client-side.
+visibility: public
+
+# This is a required field. I'd say that it's OK to leave this empty
+# to begin with, but we should probably flesh them out eventually so
+# system-z can draw pretty dependency graphs.
+dependencies: []
+
+# Facts are optional key-value pairs. A few of these are standardized,
+# but all are optional.
+facts:
+  # Standard. The slack channel for support. Optional but recommended.
+  slack_channel: nyc-infra
+
+  # Standard. Support email address.
+  support_email: nyc-infra@spotify.com
+
+  # Standard. Jira feature name.
+  jira_feature: Infrastructure [Marvin / Foundation]
+
+  # Standard. System-Z uses these string tags for grouping similar services.
+  tags: ['android']
+
+  # Custom: An array of GHE-taggables. This can be a list of individuals
+  # and/or org teams. This can be used to configure mention-bot to always
+  # tag this list of people when files change in the directory where
+  # service-info.yaml lives.
+  mentionbot:
+    #GHE usernames or groups.
+    users: [android/nyc-infra]
+    # specifies a list of relative file globs to match
+    # if null or omitted, will recursively own all files in the folder containing this yaml file
+    # paths: [] # see alwaysNotifyForPaths in mention-bot config (optional)

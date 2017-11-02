@@ -1,0 +1,8 @@
+apply plugin: 'java-library'
+
+dependencies {
+    implementation project(':lib2')
+}
+
+sourceCompatibility = "1.7"
+targetCompatibility = "1.7"

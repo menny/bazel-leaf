@@ -1,0 +1,8 @@
+description = 'Plugin that adds Bazel build tasks to a Gradle project.'
+ext.longDescription = description
+
+apply plugin: 'groovy'
+dependencies {
+    compile gradleApi()
+    compile localGroovy()
+}
