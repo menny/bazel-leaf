@@ -1,5 +1,21 @@
-apply plugin: 'java-library'
+import org.gradle.api.attributes.Usage
+import static org.gradle.api.attributes.Usage.USAGE_ATTRIBUTE
+
+//apply plugin: 'java-library'
+//sourceCompatibility = "1.7"
+//targetCompatibility = "1.7"
+
 apply plugin: 'bazelleaf'
 
-sourceCompatibility = "1.7"
-targetCompatibility = "1.7"
+
+apply plugin: 'idea'
+
+idea {
+    module {
+        sourceDirs += file('src/main/java')
+    }
+}
+
+bazel {
+    target = 'jar'
+}

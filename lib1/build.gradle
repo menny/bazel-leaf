@@ -2,6 +2,7 @@ apply plugin: 'java-library'
 
 dependencies {
     implementation project(':lib2')
+    implementation 'io.reactivex:rxjava:1.1.6'
 }
 
 sourceCompatibility = "1.7"

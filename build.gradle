@@ -25,3 +25,25 @@ allprojects {
 task clean(type: Delete) {
     delete rootProject.buildDir
 }
+
+
+//project(':lib1').afterEvaluate {
+//    project(':lib1').configurations.each {
+//        println '---'
+//        println it.name
+//
+//        if (!it.canBeResolved) {
+//            println "CANT BE RESOLVED!"
+//            println '---'
+//            return
+//        }
+//
+//        println it.resolve().each {
+//            println it.absolutePath
+//        }
+//
+//        println '---'
+//    }
+//
+//    throw new Exception('asdfadsf')
+//}

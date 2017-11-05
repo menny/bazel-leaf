@@ -1,7 +1,5 @@
-
 java_library(
-	visibility = ["//visibility:public"],
     name = "jar",
     srcs = glob(["src/main/java/**/*.java"]),
-    deps = ["//lib3:jar"]
+    deps = ['//lib2:jar']
 )
