@@ -15,10 +15,12 @@ class BazelLeafPlugin implements Plugin<Project>  {
             BazelLeafConfig config = extensions.create('bazel', BazelLeafConfig)
             String outputPath = path.replace(':', '/')
             String bazelPath = "/${path.replace(':', '/')}"
+            //note: Bazel must use the same folder for all outputs, so we use the build-folder of the root-project
+            final String bazelBuildDir = "${rootProject.buildDir.absolutePath}/bazel-build"
 
             Task bazelBuildTask = task('bazelBuild', type: Exec) {
                 workingDir rootDir
-                commandLine config.bin, 'build', "${bazelPath}:${config.target}"
+                commandLine config.bin, 'build', "--symlink_prefix=${bazelBuildDir}/", "${bazelPath}:${config.target}"
             }
 
             configurations {
@@ -31,7 +33,7 @@ class BazelLeafPlugin implements Plugin<Project>  {
                 }
             }
 
-            BazelArtifact bazelArtifact = new BazelArtifact(bazelBuildTask, new File("${rootDir}/bazel-bin/${outputPath}/lib${config.target}.jar"))
+            BazelArtifact bazelArtifact = new BazelArtifact(bazelBuildTask, new File("${bazelBuildDir}/bin/${outputPath}/lib${config.target}.jar"))
 
             artifacts {
                 runtime bazelArtifact
