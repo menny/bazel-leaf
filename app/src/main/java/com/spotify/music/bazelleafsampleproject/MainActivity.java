@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.widget.TextView;
 
 import com.spotify.music.lib1.Lib1;
+import com.spotify.music.lib3.Lib3;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -13,7 +14,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        TextView textView = findViewById(R.id.hello_world);
-        textView.setText(new Lib1().hello("Menny + Sean"));
+        ((TextView)findViewById(R.id.lib1_text)).setText(new Lib1().hello("Menny + Sean"));
+        ((TextView)findViewById(R.id.lib3_text)).setText(Lib3.LIB3_TEST);
     }
 }

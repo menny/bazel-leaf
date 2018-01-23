@@ -7,7 +7,13 @@
     tools:context="com.spotify.music.bazelleafsampleproject.MainActivity">
 
     <TextView
-        android:id="@+id/hello_world"
+        android:id="@+id/lib1_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Hello World!" />
+
+    <TextView
+        android:id="@+id/lib3_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Hello World!" />
