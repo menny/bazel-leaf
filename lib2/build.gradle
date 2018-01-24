@@ -1,11 +1,4 @@
 apply plugin: 'bazelleaf'
-apply plugin: 'idea'
-
-idea {
-    module {
-        sourceDirs += file('src/main/java')
-    }
-}
 
 bazel {
     target = 'jar'
