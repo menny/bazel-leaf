@@ -1,17 +1,19 @@
 package com.spotify.gradle.bazel;
 
-import org.codehaus.groovy.runtime.ResourceGroovyMethods;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.attributes.Usage;
 import org.gradle.api.tasks.Exec;
 import org.gradle.plugins.ide.idea.IdeaPlugin;
 
-import java.io.DataInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Properties;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static org.gradle.api.attributes.Usage.USAGE_ATTRIBUTE;
 
@@ -28,9 +30,9 @@ public class BazelLeafPlugin implements Plugin<Project> {
         Properties properties = new Properties();
         File propertiesFile = project.getRootProject().file("local.properties");
         if (propertiesFile.exists()) {
-            DataInputStream input = null;
+            FileInputStream input = null;
             try {
-                input = ResourceGroovyMethods.newDataInputStream(propertiesFile);
+                input = new FileInputStream(propertiesFile);
                 properties.load(input);
             } catch (IOException e) {
                 e.printStackTrace();
@@ -64,7 +66,8 @@ public class BazelLeafPlugin implements Plugin<Project> {
         final String bazelBuildDir = rootProject.getBuildDir().getAbsolutePath() + "/bazel-build";
         final Exec bazelBuildTask = (Exec) project.task(Collections.singletonMap("type", Exec.class), "bazelBuild");
         bazelBuildTask.setWorkingDir(project.getRootDir());
-        bazelBuildTask.setCommandLine(pathToBazelBin, "build", "--symlink_prefix=" + bazelBuildDir + "/", bazelPath + ":" + config.getTarget());
+        final String bazelTargetName = bazelPath + ":" + config.getTarget();
+        bazelBuildTask.setCommandLine(pathToBazelBin, "build", "--symlink_prefix=" + bazelBuildDir + "/", bazelTargetName);
 
         /*
          * Adding build configurations
@@ -81,11 +84,12 @@ public class BazelLeafPlugin implements Plugin<Project> {
         project.getArtifacts().add("runtime", bazelArtifact);
         project.getArtifacts().add("implementation", bazelArtifact);
 
+        final AspectRunner aspectRunner = new AspectRunner(pathToBazelBin, rootProject.getRootDir().getAbsoluteFile(), bazelBuildDir, bazelTargetName);
         /*
          * Applying IDEA plugin, so InteliJ will index the source files
          */
         IdeaPlugin ideaPlugin = (IdeaPlugin) project.getPlugins().apply("idea");
-        ideaPlugin.getModel().getModule().setSourceDirs(Collections.singleton(project.file("src/main/java")));
+        ideaPlugin.getModel().getModule().setSourceDirs(getSourceFoldersFromBazelAspect(rootProject, aspectRunner));
 
         /*
          * Creating a CLEAN task in the root project
@@ -98,5 +102,14 @@ public class BazelLeafPlugin implements Plugin<Project> {
 
             rootProject.getTasks().findByPath(":clean").dependsOn(bazelCleanTask);
         }
+    }
+
+    private static Set<File> getSourceFoldersFromBazelAspect(Project rootProject, AspectRunner runner) {
+        return runner.getAspectResult("get_source_files.bzl").stream()
+                .map(File::new)
+                .map(File::getParentFile)
+                .map(rootProject::file)
+                .distinct()
+                .collect(Collectors.toSet());
     }
 }

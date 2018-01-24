@@ -1,7 +1,13 @@
 description = 'Plugin that adds Bazel build tasks to a Gradle project.'
 ext.longDescription = description
 
-apply plugin: 'groovy'
+apply plugin: 'java'
+
+repositories {
+    mavenCentral()
+}
+
 dependencies {
-    compile gradleApi()
+    implementation gradleApi()
+    implementation 'commons-io:commons-io:2.6'
 }
