@@ -1,4 +1,5 @@
 apply plugin: 'bazelleaf'
+apply plugin: 'idea'
 
 bazel {
     target = 'jar'

@@ -23,3 +23,18 @@ app - an Android app which is built using Gradle
        |
        |_ lib4 - a Java lib that is built using Bazel
 
+```
+
+# Module setup
+For each module that is built using Bazel:
+* create a `build.gradle` file for the module
+* apply the `bazel-leaf` plugin:
+```
+apply plugin: 'bazelleaf'
+```
+* add build configuration, and specify which target should be built with Baze:
+```
+bazel {
+    target = 'jar'
+}
+```

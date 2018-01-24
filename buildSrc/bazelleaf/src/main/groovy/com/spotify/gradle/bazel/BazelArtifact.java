@@ -1,43 +1,51 @@
-package com.spotify.gradle.bazel
+package com.spotify.gradle.bazel;
 
-import org.gradle.api.Task
-import org.gradle.api.internal.artifacts.publish.AbstractPublishArtifact
+import org.gradle.api.Task;
+import org.gradle.api.internal.artifacts.publish.AbstractPublishArtifact;
+
+import java.io.File;
+import java.util.Date;
+
+import javax.annotation.Nullable;
 
 class BazelArtifact extends AbstractPublishArtifact {
-    File file
 
-    BazelArtifact(Task buildTask, File file) {
-      super(buildTask)
-        this.file = file
+    private final File mFile;
+
+    BazelArtifact(Task task, File file) {
+        super(task);
+        mFile = file;
     }
 
     @Override
-    String getName() {
-        'lib2'
+    public String getName() {
+        return "lib2";
     }
 
     @Override
-    String getExtension() {
-        'jar'
+    public String getExtension() {
+        return "jar";
     }
 
     @Override
-    String getType() {
-        'jar'
+    public String getType() {
+        return "jar";
+    }
+
+    @Nullable
+    @Override
+    public String getClassifier() {
+        return null;
     }
 
     @Override
-    String getClassifier() {
-        null
+    public File getFile() {
+        return mFile;
     }
 
+    @Nullable
     @Override
-    File getFile() {
-        file
-    }
-
-    @Override
-    Date getDate() {
-        return new Date(file.lastModified())
+    public Date getDate() {
+        return new Date(mFile.lastModified());
     }
 }
