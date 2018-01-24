@@ -4,14 +4,16 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.attributes.Usage
-import org.gradle.api.internal.artifacts.publish.AbstractPublishArtifact
 import org.gradle.api.tasks.Exec
 
 import static org.gradle.api.attributes.Usage.USAGE_ATTRIBUTE
 
-class BazelLeafPlugin implements Plugin<Project>  {
+class BazelLeafPlugin implements Plugin<Project> {
+    final static DEFAULT_BIN_PATH = '/usr/local/bin/bazel'
+
     void apply(Project project) {
         project.with {
+            String pathToBazelBin = getBazelBinPath(project)
             BazelLeafConfig config = extensions.create('bazel', BazelLeafConfig)
             String outputPath = path.replace(':', '/')
             String bazelPath = "/${path.replace(':', '/')}"
@@ -20,11 +22,11 @@ class BazelLeafPlugin implements Plugin<Project>  {
 
             Task bazelBuildTask = task('bazelBuild', type: Exec) {
                 workingDir rootDir
-                commandLine config.bin, 'build', "--symlink_prefix=${bazelBuildDir}/", "${bazelPath}:${config.target}"
+                commandLine pathToBazelBin, 'build', "--symlink_prefix=${bazelBuildDir}/", "${bazelPath}:${config.target}"
             }
 
             configurations {
-                'default' { }
+                'default' {}
                 implementation {
                     attributes.attribute(USAGE_ATTRIBUTE, objects.named(Usage, Usage.JAVA_API))
                 }
@@ -47,6 +49,18 @@ class BazelLeafPlugin implements Plugin<Project>  {
                 }
             }
         }
+    }
+
+    static String getBazelBinPath(Project project) {
+        Properties properties = new Properties()
+        File propertiesFile = project.rootProject.file('local.properties')
+        if (propertiesFile.exists()) {
+            DataInputStream input = propertiesFile.newDataInputStream()
+            properties.load(input)
+            input.close()
+        }
+
+        properties.get('bazel.bin.path', DEFAULT_BIN_PATH)
     }
 }
 
