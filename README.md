@@ -32,7 +32,7 @@ For each module that is built using Bazel:
 ```
 apply plugin: 'bazelleaf'
 ```
-* add build configuration, and specify which target should be built with Baze:
+* add build configuration, and specify which target should be built with Bazel:
 ```
 bazel {
     target = 'jar'
