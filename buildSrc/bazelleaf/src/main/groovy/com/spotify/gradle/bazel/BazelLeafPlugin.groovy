@@ -48,6 +48,17 @@ class BazelLeafPlugin implements Plugin<Project> {
                     sourceDirs += file('src/main/java')
                 }
             }
+
+            rootProject.with {
+                if (getTasksByName('bazelClean', false/*only search in root project*/).isEmpty()) {
+                    Task bazelClean = task('bazelClean', type: Exec) {
+                        workingDir rootDir
+                        commandLine pathToBazelBin, 'clean', "--symlink_prefix=${bazelBuildDir}/"
+                    }
+
+                    tasks.findByPath(":clean").dependsOn(bazelClean)
+                }
+            }
         }
     }
 
