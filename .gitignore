@@ -11,6 +11,6 @@ build/
 /build
 /captures
 .externalNativeBuild
-bazel*
+/bazel-out
 /tmp
 bin/
