@@ -50,46 +50,4 @@ class BazelLeafPlugin implements Plugin<Project>  {
     }
 }
 
-class BazelArtifact extends AbstractPublishArtifact {
-    File file
 
-    BazelArtifact(Task buildTask, File file) {
-      super(buildTask)
-        this.file = file
-    }
-
-    @Override
-    String getName() {
-        'lib2'
-    }
-
-    @Override
-    String getExtension() {
-        'jar'
-    }
-
-    @Override
-    String getType() {
-        'jar'
-    }
-
-    @Override
-    String getClassifier() {
-        null
-    }
-
-    @Override
-    File getFile() {
-        file
-    }
-
-    @Override
-    Date getDate() {
-        return new Date(file.lastModified())
-    }
-}
-
-class BazelLeafConfig {
-    String bin = '/usr/local/bin/bazel'
-    String target = 'jar'
-}
