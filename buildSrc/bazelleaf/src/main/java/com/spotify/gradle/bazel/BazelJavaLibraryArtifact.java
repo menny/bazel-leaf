@@ -8,18 +8,18 @@ import java.util.Date;
 
 import javax.annotation.Nullable;
 
-class BazelArtifact extends AbstractPublishArtifact {
+class BazelJavaLibraryArtifact extends AbstractPublishArtifact {
 
     private final File mFile;
 
-    BazelArtifact(Task task, File file) {
+    BazelJavaLibraryArtifact(Task task, File file) {
         super(task);
         mFile = file;
     }
 
     @Override
     public String getName() {
-        return "lib2";
+        return mFile.getName();
     }
 
     @Override

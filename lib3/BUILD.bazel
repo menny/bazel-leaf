@@ -2,6 +2,6 @@
 java_library(
 	visibility = ["//visibility:public"],
     name = "jar",
-    srcs = glob(["src/main/java/**/*.java"]),
+    srcs = glob(["src/**/*.java"]),
     deps = ["//lib4:jar"]
 )
