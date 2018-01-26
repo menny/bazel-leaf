@@ -8,11 +8,11 @@ import java.util.Date;
 
 import javax.annotation.Nullable;
 
-class BazelJavaLibraryArtifact extends AbstractPublishArtifact {
+class BazelPublishArtifact extends AbstractPublishArtifact {
 
     private final File mFile;
 
-    BazelJavaLibraryArtifact(Task task, File file) {
+    BazelPublishArtifact(Task task, File file) {
         super(task);
         mFile = file;
     }
@@ -24,12 +24,12 @@ class BazelJavaLibraryArtifact extends AbstractPublishArtifact {
 
     @Override
     public String getExtension() {
-        return "jar";
+        return mFile.getName().substring(mFile.getName().lastIndexOf(".") + 1);
     }
 
     @Override
     public String getType() {
-        return "jar";
+        return getExtension();
     }
 
     @Nullable

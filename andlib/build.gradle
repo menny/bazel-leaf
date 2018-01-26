@@ -1,5 +1,5 @@
 apply plugin: 'bazelleaf'
 
 bazel {
-    target = 'jar'
+    target = 'aarbin'
 }

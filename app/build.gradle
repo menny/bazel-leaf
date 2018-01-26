@@ -22,6 +22,7 @@ android {
 dependencies {
     implementation project(':lib1')
     implementation project(':lib3')
+    implementation project(':andlib')
 
     implementation 'com.android.support:appcompat-v7:27.0.2'
 

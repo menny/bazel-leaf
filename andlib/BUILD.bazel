@@ -1,0 +1,12 @@
+load("//bzl_macros:android_aar_library.bzl", "android_aar_library")
+
+android_library(
+        visibility = ["//visibility:public"],
+        name = "aarbin",
+        srcs = glob(["src/main/java/**/*.java"]),
+        resource_files = glob(["src/main/res/**/*"]),
+        manifest = "src/main/AndroidManifest.xml",
+        custom_package = "com.spotify.music.andlib",
+    )
+
+android_aar_library("actual_android_aarbin", "//andlib:aarbin")

@@ -10,25 +10,19 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
-import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class AspectRunner {
-    private final String mBazelBinaryPath;
+    private final BazelLeafConfig.Decorated mConfig;
+    private final String mBazelFullPathTarget;
     private final File mAspectsFolder;
-    private final File mWorkingDir;
-    private final String mBazelBuildDir;
-    private final String mBazelTarget;
 
-    public AspectRunner(String bazelBinaryPath, File workingDir, String bazelBuildDir, String bazelTarget) {
-        this.mBazelBinaryPath = bazelBinaryPath;
-        this.mWorkingDir = workingDir;
-        this.mBazelBuildDir = bazelBuildDir;
-        this.mBazelTarget = bazelTarget;
-        this.mAspectsFolder = new File("build/bazel_aspects/", bazelTarget.replace(":", "_").replace("/", "_"));
+    public AspectRunner(BazelLeafConfig.Decorated config) {
+        mConfig = config;
+        mBazelFullPathTarget = mConfig.targetPath + ":" + mConfig.targetName;
+        mAspectsFolder = new File("build/bazel_aspects/", mBazelFullPathTarget.replace("/", "_").replace(":", "_"));
         if (!mAspectsFolder.exists() && !mAspectsFolder.mkdirs()) {
             throw new IllegalStateException("Failed to create output folder for aspects at " + mAspectsFolder.getAbsolutePath());
         }
@@ -49,8 +43,8 @@ public class AspectRunner {
                     IOUtils.copy(resourceAsStream, outputStream);
                     //bazel build //MyExample:example --aspects print.bzl%print_aspect
                     ProcessBuilder builder = new ProcessBuilder();
-                    builder.command(mBazelBinaryPath, "build", mBazelTarget, "--symlink_prefix=" + mBazelBuildDir + "/", "--aspects", aspectRuleFile + "%print_aspect");
-                    builder.directory(mWorkingDir);
+                    builder.command(mConfig.bazelBin, "build", mBazelFullPathTarget, "--symlink_prefix=" + mConfig.buildOutputDir + "/", "--aspects", aspectRuleFile + "%print_aspect");
+                    builder.directory(mConfig.projectRootDir);
                     final File aspectOutputFile = new File(mAspectsFolder, aspectRuleFileName + ".txt");
                     builder.redirectOutput(aspectOutputFile);
                     final File aspectErrOutputFile = new File(mAspectsFolder, aspectRuleFileName + ".err");
@@ -60,7 +54,7 @@ public class AspectRunner {
                         for (String errorLine : Files.readAllLines(aspectErrOutputFile.toPath())) {
                             System.out.println("ASPECT ERROR: " + errorLine);
                         }
-                        throw new IllegalStateException("Failed to run " + aspectRuleFileName + " aspect on " + mBazelTarget,
+                        throw new IllegalStateException("Failed to run " + aspectRuleFileName + " aspect on " + mBazelFullPathTarget,
                                 new IOException("Got process exit code " + exitCode));
                     }
 
