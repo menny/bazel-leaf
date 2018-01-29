@@ -16,5 +16,8 @@ public class MainActivity extends AppCompatActivity {
 
         ((TextView)findViewById(R.id.lib1_text)).setText(new Lib1().hello("Menny + Sean"));
         ((TextView)findViewById(R.id.lib3_text)).setText(Lib3.LIB3_TEST);
+        ((TextView)findViewById(R.id.andlib_text)).setText(R.string.andlib1);
+
+
     }
 }

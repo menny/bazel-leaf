@@ -7,7 +7,6 @@ import org.gradle.api.tasks.Exec;
 import java.io.File;
 import java.util.Collections;
 import java.util.List;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 public abstract class Strategy {
@@ -22,7 +21,7 @@ public abstract class Strategy {
         switch (kind) {
             case "java_library":
                 return new JavaLibraryStrategy(config);
-            case "android_library":
+            case "genrule"://a huge ugly assumption that a genrule is our macro
                 return new AndroidLibraryStrategy(config);
             default:
                 throw new IllegalArgumentException("Unsupported target kind " + kind + ". Currently, supporting java_library and android_library. Fix " + config.targetPath + ":" + config.targetName);
@@ -40,7 +39,7 @@ public abstract class Strategy {
         return bazelBuildTask;
     }
 
-    private File generateFileForOutput(String filename) {
+    File generateFileForOutput(String filename) {
         return new File(mConfig.workspaceRootFolder, filename);
     }
 
@@ -53,28 +52,19 @@ public abstract class Strategy {
 
     private static class AndroidLibraryStrategy extends Strategy {
 
-        private static final String ANDROID_TARGET_NAME_PREFIX = "actual_android_";
-
         public AndroidLibraryStrategy(BazelLeafConfig.Decorated config) {
             super(config);
         }
 
         @Override
         public Exec createBazelBuildTask(Project project) {
-            return createBazelBuildTaskInternal(project, ANDROID_TARGET_NAME_PREFIX + mConfig.targetName, "bazelAarBuild_" + mConfig.targetName);
+            return createBazelBuildTaskInternal(project, mConfig.targetName, "bazelAarBuild_" + mConfig.targetName);
         }
 
         @Override
         public List<BazelPublishArtifact> getBazelArtifacts(AspectRunner aspectRunner, Exec bazelBuildTask) {
-//            final File file = generateFileForOutput(ANDROID_TARGET_NAME_PREFIX + mConfig.targetName + ".aar");
-//            return Collections.singletonList(new BazelPublishArtifact(bazelBuildTask, file));
             final List<BazelPublishArtifact> bazelArtifacts = super.getBazelArtifacts(aspectRunner, bazelBuildTask);
-            bazelArtifacts.forEach(new Consumer<BazelPublishArtifact>() {
-                @Override
-                public void accept(BazelPublishArtifact bazelPublishArtifact) {
-                    System.out.println(bazelPublishArtifact.getFile().getAbsolutePath());
-                }
-            });
+            bazelArtifacts.forEach(bazelPublishArtifact -> System.out.println(bazelPublishArtifact.getFile().getAbsolutePath()));
 
             return bazelArtifacts;
         }

@@ -18,4 +18,10 @@
         android:layout_height="wrap_content"
         android:text="Hello World!" />
 
+    <TextView
+        android:id="@+id/andlib_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Hello World!" />
+
 </LinearLayout>

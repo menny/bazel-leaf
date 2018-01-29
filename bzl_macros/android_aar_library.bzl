@@ -18,7 +18,7 @@ cat > $$BASE_OUT_PUT_FOLDER/AndroidManifest.xml <<EOF
 <manifest
   xmlns:android="http://schemas.android.com/apk/res/android"
   package="does.not.matter">
-  <uses-sdk android:minSdkVersion="999"/>
+  <uses-sdk android:minSdkVersion="15"/>
 </manifest>
 EOF
 
