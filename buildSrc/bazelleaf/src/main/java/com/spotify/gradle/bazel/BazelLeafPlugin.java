@@ -3,9 +3,7 @@ package com.spotify.gradle.bazel;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
-import org.gradle.api.artifacts.ConfigurationVariant;
 import org.gradle.api.artifacts.Dependency;
-import org.gradle.api.attributes.Usage;
 import org.gradle.api.tasks.Exec;
 import org.gradle.plugins.ide.idea.IdeaPlugin;
 import org.gradle.plugins.ide.idea.model.IdeaModule;
@@ -56,11 +54,11 @@ public class BazelLeafPlugin implements Plugin<Project> {
         /*
          * Adding build artifacts
          */
-        final BazelPublishArtifact bazelArtifact = strategy.getBazelArtifact(aspectRunner, bazelBuildTask);
+        strategy.getBazelArtifacts(aspectRunner, bazelBuildTask).forEach(bazelPublishArtifact -> defaultConfiguration.getOutgoing().getArtifacts().add(bazelPublishArtifact));
 
-        ConfigurationVariant variant = defaultConfiguration.getOutgoing().getVariants().create("classes");
-        variant.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, rootProject.getObjects().named(Usage.class, Usage.JAVA_API_CLASSES));
-        variant.artifact(bazelArtifact);
+        //ConfigurationVariant variant = .add(
+        //variant.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, rootProject.getObjects().named(Usage.class, Usage.JAVA_API_CLASSES));
+        //variant.artifact(bazelArtifact);
 
         /*
          * Applying IDEA plugin, so InteliJ will index the source files
@@ -74,8 +72,8 @@ public class BazelLeafPlugin implements Plugin<Project> {
          */
         if (rootProject.getTasksByName("bazelClean", false/*only search the root project*/).isEmpty()) {
             final Exec bazelCleanTask = (Exec) rootProject.task(Collections.singletonMap("type", Exec.class), "bazelClean");
-            bazelCleanTask.setWorkingDir(rootProject.getRootDir());
-            bazelCleanTask.setCommandLine(config.bazelBin, "clean", "--symlink_prefix=" + config.buildOutputDir + "/");
+            bazelCleanTask.setWorkingDir(config.workspaceRootFolder);
+            bazelCleanTask.setCommandLine(config.bazelBin, "clean", "--symlink_prefix=" + config.buildOutputDir);
 
             rootProject.getTasks().findByPath(":clean").dependsOn(bazelCleanTask);
         }

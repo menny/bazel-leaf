@@ -43,8 +43,8 @@ public class AspectRunner {
                     IOUtils.copy(resourceAsStream, outputStream);
                     //bazel build //MyExample:example --aspects print.bzl%print_aspect
                     ProcessBuilder builder = new ProcessBuilder();
-                    builder.command(mConfig.bazelBin, "build", mBazelFullPathTarget, "--symlink_prefix=" + mConfig.buildOutputDir + "/", "--aspects", aspectRuleFile + "%print_aspect");
-                    builder.directory(mConfig.projectRootDir);
+                    builder.command(mConfig.bazelBin, "build", "--symlink_prefix=" + mConfig.buildOutputDir, mBazelFullPathTarget, "--aspects", aspectRuleFile + "%print_aspect");
+                    builder.directory(mConfig.workspaceRootFolder);
                     final File aspectOutputFile = new File(mAspectsFolder, aspectRuleFileName + ".txt");
                     builder.redirectOutput(aspectOutputFile);
                     final File aspectErrOutputFile = new File(mAspectsFolder, aspectRuleFileName + ".err");

@@ -48,4 +48,6 @@ class BazelPublishArtifact extends AbstractPublishArtifact {
     public Date getDate() {
         return new Date(mFile.lastModified());
     }
+
+
 }

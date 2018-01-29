@@ -37,23 +37,23 @@ public class BazelLeafConfig {
                 getBazelBinPath(project),
                 "/" + outputPath.replace(":", "/"),
                 target,
-                project.getProjectDir(),
-                project.getRootProject().getBuildDir().getAbsolutePath() + "/bazel-build");
+                project.getRootProject().getProjectDir(),
+                project.getRootProject().getBuildDir().getAbsolutePath() + "/bazel-build/");
     }
 
     public static class Decorated {
-        private Decorated(String bazelBin, String targetPath, String targetName, File projectRootDir, String buildOutputDir) {
+        private Decorated(String bazelBin, String targetPath, String targetName, File workspaceRootFolder, String buildOutputDir) {
             this.bazelBin = bazelBin;
             this.targetPath = targetPath;
             this.targetName = targetName;
             this.buildOutputDir = buildOutputDir;
-            this.projectRootDir = projectRootDir;
+            this.workspaceRootFolder = workspaceRootFolder;
         }
 
         public final String bazelBin;
         public final String targetPath;
         public final String targetName;
-        public final File projectRootDir;
+        public final File workspaceRootFolder;
         public final String buildOutputDir;
     }
 
