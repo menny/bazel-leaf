@@ -1,5 +1,8 @@
 package com.spotify.gradle.bazel;
 
+import com.spotify.gradle.bazel.strategies.Factory;
+import com.spotify.gradle.bazel.strategies.Strategy;
+
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
@@ -37,7 +40,7 @@ public class BazelLeafPlugin implements Plugin<Project> {
         final Project rootProject = project.getRootProject();
 
         final AspectRunner aspectRunner = new AspectRunner(config);
-        final Strategy strategy = Strategy.buildStrategy(aspectRunner.getAspectResult("get_rule_kind.bzl").stream().findFirst().orElse("java_library"), config);
+        final Strategy strategy = Factory.buildStrategy(aspectRunner.getAspectResult("get_rule_kind.bzl").stream().findFirst().orElse("java_library"), config);
         /*
          * creating a Bazel-Build task
          */
@@ -54,11 +57,7 @@ public class BazelLeafPlugin implements Plugin<Project> {
         /*
          * Adding build artifacts
          */
-        strategy.getBazelArtifacts(aspectRunner, bazelBuildTask).forEach(bazelPublishArtifact -> defaultConfiguration.getOutgoing().getArtifacts().add(bazelPublishArtifact));
-
-        //ConfigurationVariant variant = .add(
-        //variant.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, rootProject.getObjects().named(Usage.class, Usage.JAVA_API_CLASSES));
-        //variant.artifact(bazelArtifact);
+        strategy.getBazelArtifacts(aspectRunner, project, bazelBuildTask).forEach(bazelPublishArtifact -> defaultConfiguration.getOutgoing().getArtifacts().add(bazelPublishArtifact));
 
         /*
          * Applying IDEA plugin, so InteliJ will index the source files

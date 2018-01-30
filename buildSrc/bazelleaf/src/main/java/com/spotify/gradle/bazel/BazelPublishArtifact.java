@@ -8,11 +8,11 @@ import java.util.Date;
 
 import javax.annotation.Nullable;
 
-class BazelPublishArtifact extends AbstractPublishArtifact {
+public class BazelPublishArtifact extends AbstractPublishArtifact {
 
     private final File mFile;
 
-    BazelPublishArtifact(Task task, File file) {
+    public BazelPublishArtifact(Task task, File file) {
         super(task);
         mFile = file;
     }
