@@ -20,8 +20,16 @@ app - an Android app which is built using Gradle
   |    |_ Lib2 - a Java lib that is build using Bazel
   |
   |_ lib3 - a Java lib that is built using Bazel
+  |    |
+  |    |_ lib4 - a Java lib that is built using Bazel
+  |
+  |_ andlib - an Android lib that is built using Bazel
+  |    |
+  |    |_ innerandlib - an Android lib that is built using Bazel
+  |
+  |_ lib5 - an Android lib that is built using Gradle
        |
-       |_ lib4 - a Java lib that is built using Bazel
+       |_ innerandlib5 - an Android lib that is built using Bazel
 
 ```
 

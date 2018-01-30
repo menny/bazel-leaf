@@ -1,9 +1,8 @@
 android_library(
         visibility = ["//visibility:public"],
-        name = "aarbin",
+        name = "inneraar",
         srcs = glob(["src/main/java/**/*.java"]),
         resource_files = glob(["src/main/res/**/*"]),
         manifest = "src/main/AndroidManifest.xml",
-        custom_package = "com.spotify.music.andlib",
-        deps = ["//andlib/innerandlib:inneraar"]
+        custom_package = "com.spotify.music.innerandlib",
     )

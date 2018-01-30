@@ -4,6 +4,7 @@ import android.os.Parcel;
 import android.os.Parcelable;
 
 public class MyParcelable implements Parcelable {
+    public static final String TEST = com.spotify.music.innerandlib.InnerAndLib.TEST;
     public MyParcelable() {
     }
 

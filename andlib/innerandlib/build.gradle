@@ -1,0 +1,5 @@
+apply plugin: 'bazelleaf'
+
+bazel {
+    target = 'inneraar'
+}
