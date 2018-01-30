@@ -1,5 +1,5 @@
 apply plugin: 'bazelleaf'
 
 bazel {
-    target = 'actual_android_aarbin'
+    target = 'aarbin'
 }

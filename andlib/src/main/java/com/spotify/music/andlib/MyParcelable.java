@@ -4,6 +4,9 @@ import android.os.Parcel;
 import android.os.Parcelable;
 
 public class MyParcelable implements Parcelable {
+    public MyParcelable() {
+    }
+
     protected MyParcelable(Parcel in) {
     }
 
