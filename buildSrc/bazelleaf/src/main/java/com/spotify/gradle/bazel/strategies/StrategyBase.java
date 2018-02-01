@@ -21,14 +21,15 @@ public abstract class StrategyBase implements Strategy {
         mConfig = config;
     }
 
-    @Override
-    public abstract Exec createBazelBuildTask(Project project);
+    protected abstract String generateBazelBuildTaskName(Project project);
 
-    Exec createBazelBuildTaskInternal(Project project, String bazelTargetName, String taskName) {
-        final Exec bazelBuildTask = (Exec) project.task(Collections.singletonMap("type", Exec.class), taskName);
+    @Override
+    public Exec createBazelBuildTask(Project project) {
+        final Exec bazelBuildTask = (Exec) project.task(Collections.singletonMap("type", Exec.class), generateBazelBuildTaskName(project));
         bazelBuildTask.setWorkingDir(mConfig.workspaceRootFolder);
-        bazelBuildTask.setCommandLine(mConfig.bazelBin, "build", "--symlink_prefix=" + mConfig.buildOutputDir, mConfig.targetPath + ":" + bazelTargetName);
-        bazelBuildTask.setDescription("Assembles this project using Bazel.");
+        final String bazelBuildTarget = mConfig.targetPath + ":" + mConfig.targetName;
+        bazelBuildTask.setCommandLine(mConfig.bazelBin, "build", "--symlink_prefix=" + mConfig.buildOutputDir, bazelBuildTarget);
+        bazelBuildTask.setDescription("Assembles this project using Bazel target " + bazelBuildTarget);
         bazelBuildTask.setGroup(BasePlugin.BUILD_GROUP);
         return bazelBuildTask;
     }

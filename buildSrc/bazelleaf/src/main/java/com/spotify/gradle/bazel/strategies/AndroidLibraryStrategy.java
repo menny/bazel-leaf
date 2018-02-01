@@ -25,8 +25,8 @@ class AndroidLibraryStrategy extends StrategyBase {
     }
 
     @Override
-    public Exec createBazelBuildTask(Project project) {
-        return createBazelBuildTaskInternal(project, mConfig.targetName, "bazelAarBuild_" + mConfig.targetName);
+    protected String generateBazelBuildTaskName(Project project) {
+        return "bazelAarBuild_" + mConfig.targetName;
     }
 
     @Override
