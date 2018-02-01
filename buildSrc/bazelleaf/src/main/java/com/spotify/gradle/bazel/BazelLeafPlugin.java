@@ -17,6 +17,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -57,10 +58,29 @@ public class BazelLeafPlugin implements Plugin<Project> {
         /*
          * Adding build artifacts
          */
-        strategy.getBazelArtifacts(aspectRunner, project, bazelBuildTask).forEach(bazelPublishArtifact -> defaultConfiguration.getOutgoing().getArtifacts().add(bazelPublishArtifact));
+        strategy.getBazelArtifacts(aspectRunner, project, bazelBuildTask)
+                .forEach(bazelPublishArtifact ->
+                        defaultConfiguration.getOutgoing().getArtifacts().add(bazelPublishArtifact)
+                );
 
         /*
-         * Applying IDEA plugin, so InteliJ will index the source files
+         * Exclude bazel build directories for IntelliJ's indexing
+         * Adds <exclude .../> to the root project iml file
+         */
+        if (!rootProject.getPlugins().hasPlugin(IdeaPlugin.class)) {
+            IdeaPlugin rootIdeaPlugin = (IdeaPlugin) rootProject.getPlugins().apply("idea");
+
+            Set<File> set = new HashSet<>();
+            set.add(new File(config.workspaceRootFolder, "bazel-out"));
+            set.add(new File(config.workspaceRootFolder, "build/bazel_aspects"));
+            set.add(new File(config.buildOutputDir));
+            set.addAll(rootIdeaPlugin.getModel().getModule().getExcludeDirs());
+            // set is required to override the existing values
+            rootIdeaPlugin.getModel().getModule().setExcludeDirs(set);
+        }
+
+        /*
+         * Applying IDEA plugin, so IntelliJ will index the source files
          */
         IdeaPlugin ideaPlugin = (IdeaPlugin) project.getPlugins().apply("idea");
         final IdeaModule ideaModule = ideaPlugin.getModel().getModule();
