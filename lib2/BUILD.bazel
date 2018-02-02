@@ -7,11 +7,12 @@ java_library(
 )
 
 java_test(
-    name = "Lib2Test",
+    name = "AllTests",
     size = "small",
     srcs = glob(["src/test/java/**/*.java"]),
     deps = [
         ":jar",
         "@junit_junit//jar",
+        "//bazeltestutil:jar"
     ],
 )

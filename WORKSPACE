@@ -18,9 +18,12 @@ transitive_maven_jar(
 	name = "third_party",
 	artifacts = [
 	    "junit:junit:4.12",
-	    "com.google.guava:guava:20.0"
+	    "com.google.guava:guava:23.0"
 	    ],
-	repositories = ["https://artifactory.spotify.net/artifactory/android-repo/"]
+	repositories = [
+	    "http://repo1.maven.org/maven2/",
+	    #"https://artifactory.spotify.net/artifactory/android-repo/",
+	    ]
 )
 
 load("@third_party//:generate_workspace.bzl", "generated_maven_jars")

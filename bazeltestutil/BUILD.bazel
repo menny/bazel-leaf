@@ -1,0 +1,7 @@
+
+java_library(
+	visibility = ["//visibility:public"],
+    name = "jar",
+    srcs = glob(["src/AllTestsInClasspathSuite.java"]),
+    deps = ["@junit_junit//jar", "@com_google_guava_guava//jar"]
+)
