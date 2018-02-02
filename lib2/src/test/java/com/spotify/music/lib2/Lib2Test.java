@@ -12,6 +12,7 @@ public class Lib2Test {
     public void testAwesome() {
         final Lib2 underTest = new Lib2();
         Assert.assertEquals("Awesome! menny", underTest.awesome("menny"));
+        //Assert.fail();
     }
 
     @Test(expected = NullPointerException.class)

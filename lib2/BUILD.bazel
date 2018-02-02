@@ -8,6 +8,7 @@ java_library(
 
 java_test(
     name = "AllTests",
+    test_class = "com.spotify.music.lib2.AllTests",
     size = "small",
     srcs = glob(["src/test/java/**/*.java"]),
     deps = [

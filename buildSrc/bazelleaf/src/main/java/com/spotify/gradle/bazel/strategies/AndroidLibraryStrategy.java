@@ -5,9 +5,9 @@ import com.spotify.gradle.bazel.BazelLeafConfig;
 import com.spotify.gradle.bazel.BazelPublishArtifact;
 
 import org.gradle.api.Project;
+import org.gradle.api.Task;
 import org.gradle.api.internal.file.archive.ZipFileTree;
 import org.gradle.api.plugins.BasePlugin;
-import org.gradle.api.tasks.Exec;
 import org.gradle.api.tasks.bundling.Jar;
 import org.gradle.api.tasks.bundling.ZipEntryCompression;
 import org.gradle.internal.hash.DefaultContentHasherFactory;
@@ -18,19 +18,14 @@ import java.io.File;
 import java.util.Collections;
 import java.util.List;
 
-class AndroidLibraryStrategy extends StrategyBase {
+class AndroidLibraryStrategy extends PlainBuildStrategy {
 
     AndroidLibraryStrategy(BazelLeafConfig.Decorated config) {
         super(config);
     }
 
     @Override
-    protected String generateBazelExecTaskName(Project project) {
-        return "compileBazelAar_" + mConfig.targetName;
-    }
-
-    @Override
-    public List<BazelPublishArtifact> getBazelArtifacts(AspectRunner aspectRunner, Project project, Exec bazelExecTask) {
+    public List<BazelPublishArtifact> getBazelArtifacts(AspectRunner aspectRunner, Project project, Task bazelExecTask) {
         //we're going to manipulate the outs of this task:
         //using the Bazel outs, we'll construct a valid AAR file and give that to Gradle
         final File outputArtifactFolder = super.getBazelArtifacts(aspectRunner, project, bazelExecTask).get(0).getFile().getParentFile();
