@@ -86,6 +86,8 @@ public class BazelLeafPlugin implements Plugin<Project> {
         final IdeaModule ideaModule = ideaPlugin.getModel().getModule();
         ideaModule.setSourceDirs(getSourceFoldersFromBazelAspect(rootProject, aspectRunner, config.targetName));
 
+        System.out.println("target " + config.targetName + " deps:");
+        getModuleDepsFromBazel(aspectRunner, config.targetName).forEach(System.out::println);
         /*
          * Creating a CLEAN task in the root project
          */
@@ -101,16 +103,17 @@ public class BazelLeafPlugin implements Plugin<Project> {
             final Strategy testStrategy = Factory.buildStrategy(aspectRunner.getAspectResult("get_rule_kind.bzl", config.testTargetName).stream().findFirst().orElse("java_test"), config);
             final Exec bazelTestTask = testStrategy.createBazelExecTask(project);
             ideaModule.setTestSourceDirs(getSourceFoldersFromBazelAspect(rootProject, aspectRunner, config.testTargetName));
+            System.out.println("target " + config.testTargetName + " deps:");
+            getModuleDepsFromBazel(aspectRunner, config.testTargetName).forEach(System.out::println);
         }
     }
 
-    private static List<String> getModuleDepsFromBazel(Project rootProject, AspectRunner aspectRunner, String targetName) {
-        final Pattern pattern = Pattern.compile("^<target.*//(.+):.*>$");
+    private static List<String> getModuleDepsFromBazel(AspectRunner aspectRunner, String targetName) {
+        final Pattern pattern = Pattern.compile("^<target\\s*(.+)\\s*>$");
         return aspectRunner.getAspectResult("get_deps.bzl", targetName).stream()
                 .map(pattern::matcher)
                 .filter(Matcher::matches)
                 .map(matcher -> matcher.group(1))
-                .map(bazelDep -> ":" + bazelDep.replace("/", ":"))
                 .collect(Collectors.toList());
     }
 

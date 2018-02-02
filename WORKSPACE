@@ -18,7 +18,7 @@ transitive_maven_jar(
 	name = "third_party",
 	artifacts = [
 	    "junit:junit:4.12",
-	    "com.google.guava:guava:23.0"
+	    "com.google.guava:guava:20.0"
 	    ],
 	repositories = [
 	    "http://repo1.maven.org/maven2/",
