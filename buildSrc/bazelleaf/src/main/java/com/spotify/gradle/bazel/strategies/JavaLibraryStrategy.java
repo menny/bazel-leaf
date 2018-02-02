@@ -10,7 +10,7 @@ class JavaLibraryStrategy extends StrategyBase {
     }
 
     @Override
-    protected String generateBazelBuildTaskName(Project project) {
-        return "bazelJavaLibBuild_" + mConfig.targetName;
+    protected String generateBazelExecTaskName(Project project) {
+        return "compileBazelJavaLib_" + mConfig.targetName;
     }
 }

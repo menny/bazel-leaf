@@ -13,7 +13,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public abstract class StrategyBase implements Strategy {
+abstract class StrategyBase implements Strategy {
 
     final BazelLeafConfig.Decorated mConfig;
 
@@ -21,11 +21,11 @@ public abstract class StrategyBase implements Strategy {
         mConfig = config;
     }
 
-    protected abstract String generateBazelBuildTaskName(Project project);
+    protected abstract String generateBazelExecTaskName(Project project);
 
     @Override
-    public Exec createBazelBuildTask(Project project) {
-        final Exec bazelBuildTask = (Exec) project.task(Collections.singletonMap("type", Exec.class), generateBazelBuildTaskName(project));
+    public Exec createBazelExecTask(Project project) {
+        final Exec bazelBuildTask = (Exec) project.task(Collections.singletonMap("type", Exec.class), generateBazelExecTaskName(project));
         bazelBuildTask.setWorkingDir(mConfig.workspaceRootFolder);
         final String bazelBuildTarget = mConfig.targetPath + ":" + mConfig.targetName;
         bazelBuildTask.setCommandLine(mConfig.bazelBin, "build", "--symlink_prefix=" + mConfig.buildOutputDir, bazelBuildTarget);
@@ -39,10 +39,10 @@ public abstract class StrategyBase implements Strategy {
     }
 
     @Override
-    public List<BazelPublishArtifact> getBazelArtifacts(AspectRunner aspectRunner, Project project, Exec bazelBuildTask) {
-        return aspectRunner.getAspectResult("get_rule_outs.bzl").stream()
+    public List<BazelPublishArtifact> getBazelArtifacts(AspectRunner aspectRunner, Project project, Exec bazelExecTask) {
+        return aspectRunner.getAspectResult("get_rule_outs.bzl", mConfig.targetName).stream()
                 .map(this::generateFileForOutput)
-                .map(artifactFile -> new BazelPublishArtifact(bazelBuildTask, artifactFile))
+                .map(artifactFile -> new BazelPublishArtifact(bazelExecTask, artifactFile))
                 .collect(Collectors.toList());
     }
 

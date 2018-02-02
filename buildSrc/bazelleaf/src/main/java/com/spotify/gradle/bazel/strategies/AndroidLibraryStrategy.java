@@ -25,18 +25,18 @@ class AndroidLibraryStrategy extends StrategyBase {
     }
 
     @Override
-    protected String generateBazelBuildTaskName(Project project) {
-        return "bazelAarBuild_" + mConfig.targetName;
+    protected String generateBazelExecTaskName(Project project) {
+        return "compileBazelAar_" + mConfig.targetName;
     }
 
     @Override
-    public List<BazelPublishArtifact> getBazelArtifacts(AspectRunner aspectRunner, Project project, Exec bazelBuildTask) {
+    public List<BazelPublishArtifact> getBazelArtifacts(AspectRunner aspectRunner, Project project, Exec bazelExecTask) {
         //we're going to manipulate the outs of this task:
         //using the Bazel outs, we'll construct a valid AAR file and give that to Gradle
-        final File outputArtifactFolder = super.getBazelArtifacts(aspectRunner, project, bazelBuildTask).get(0).getFile().getParentFile();
+        final File outputArtifactFolder = super.getBazelArtifacts(aspectRunner, project, bazelExecTask).get(0).getFile().getParentFile();
         final File aarOutputFile = new File(outputArtifactFolder, mConfig.targetName + ".aar");
-        Jar aarCreationTask = (Jar) bazelBuildTask.getProject().task(Collections.singletonMap("type", Jar.class), bazelBuildTask.getName() + "_AarPackage");
-        aarCreationTask.dependsOn(bazelBuildTask);
+        Jar aarCreationTask = (Jar) bazelExecTask.getProject().task(Collections.singletonMap("type", Jar.class), bazelExecTask.getName() + "_AarPackage");
+        aarCreationTask.dependsOn(bazelExecTask);
         aarCreationTask.doFirst(task -> new File(outputArtifactFolder, "lib" + mConfig.targetName + ".jar").renameTo(new File(outputArtifactFolder, "classes.jar")));
         aarCreationTask.setEntryCompression(ZipEntryCompression.STORED);
         aarCreationTask.setMetadataCharset("UTF-8");

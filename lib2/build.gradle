@@ -2,4 +2,5 @@ apply plugin: 'bazelleaf'
 
 bazel {
     target = 'jar'
+    testTarget = 'AllTests'
 }

@@ -41,12 +41,12 @@ public class BazelLeafPlugin implements Plugin<Project> {
         final Project rootProject = project.getRootProject();
 
         final AspectRunner aspectRunner = new AspectRunner(config);
-        final Strategy strategy = Factory.buildStrategy(aspectRunner.getAspectResult("get_rule_kind.bzl").stream().findFirst().orElse("java_library"), config);
+        final Strategy strategy = Factory.buildStrategy(aspectRunner.getAspectResult("get_rule_kind.bzl", config.targetName).stream().findFirst().orElse("java_library"), config);
         /*
          * creating a Bazel-Build task
          */
         //note: Bazel must use the same folder for all outputs, so we use the build-folder of the root-project
-        final Exec bazelBuildTask = strategy.createBazelBuildTask(project);
+        final Exec bazelBuildTask = strategy.createBazelExecTask(project);
 
         /*
          * Adding build configurations
@@ -84,7 +84,7 @@ public class BazelLeafPlugin implements Plugin<Project> {
          */
         IdeaPlugin ideaPlugin = (IdeaPlugin) project.getPlugins().apply("idea");
         final IdeaModule ideaModule = ideaPlugin.getModel().getModule();
-        ideaModule.setSourceDirs(getSourceFoldersFromBazelAspect(rootProject, aspectRunner));
+        ideaModule.setSourceDirs(getSourceFoldersFromBazelAspect(rootProject, aspectRunner, config.targetName));
 
         /*
          * Creating a CLEAN task in the root project
@@ -96,11 +96,17 @@ public class BazelLeafPlugin implements Plugin<Project> {
 
             rootProject.getTasks().findByPath(":clean").dependsOn(bazelCleanTask);
         }
+
+        if (config.testTargetName != null && config.testTargetName.length() > 0) {
+            final Strategy testStrategy = Factory.buildStrategy(aspectRunner.getAspectResult("get_rule_kind.bzl", config.testTargetName).stream().findFirst().orElse("java_test"), config);
+            final Exec bazelTestTask = testStrategy.createBazelExecTask(project);
+            ideaModule.setTestSourceDirs(getSourceFoldersFromBazelAspect(rootProject, aspectRunner, config.testTargetName));
+        }
     }
 
-    private static List<String> getModuleDepsFromBazel(Project rootProject, AspectRunner aspectRunner) {
+    private static List<String> getModuleDepsFromBazel(Project rootProject, AspectRunner aspectRunner, String targetName) {
         final Pattern pattern = Pattern.compile("^<target.*//(.+):.*>$");
-        return aspectRunner.getAspectResult("get_deps.bzl").stream()
+        return aspectRunner.getAspectResult("get_deps.bzl", targetName).stream()
                 .map(pattern::matcher)
                 .filter(Matcher::matches)
                 .map(matcher -> matcher.group(1))
@@ -108,10 +114,10 @@ public class BazelLeafPlugin implements Plugin<Project> {
                 .collect(Collectors.toList());
     }
 
-    private static Set<File> getSourceFoldersFromBazelAspect(Project rootProject, AspectRunner runner) {
+    private static Set<File> getSourceFoldersFromBazelAspect(Project rootProject, AspectRunner runner, String targetName) {
         final Map<File, String> packageByFolder = new HashMap<>();
 
-        return runner.getAspectResult("get_source_files.bzl").stream()
+        return runner.getAspectResult("get_source_files.bzl", targetName).stream()
                 .map(File::new)
                 //we need the root-project since the WORKSPACE file is there.
                 .map(rootProject::file)

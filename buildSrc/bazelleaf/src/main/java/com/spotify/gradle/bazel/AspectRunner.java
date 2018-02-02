@@ -16,13 +16,11 @@ import java.util.stream.Collectors;
 
 public class AspectRunner {
     private final BazelLeafConfig.Decorated mConfig;
-    private final String mBazelFullPathTarget;
     private final File mAspectsFolder;
 
     public AspectRunner(BazelLeafConfig.Decorated config) {
         mConfig = config;
-        mBazelFullPathTarget = mConfig.targetPath + ":" + mConfig.targetName;
-        mAspectsFolder = new File("build/bazel_aspects/", mBazelFullPathTarget.replace("/", "_").replace(":", "_"));
+        mAspectsFolder = new File("build/bazel_aspects/", mConfig.targetPath.replace("/", "_").replace(":", "_"));
         if (!mAspectsFolder.exists() && !mAspectsFolder.mkdirs()) {
             throw new IllegalStateException("Failed to create output folder for aspects at " + mAspectsFolder.getAbsolutePath());
         }
@@ -34,7 +32,7 @@ public class AspectRunner {
         }
     }
 
-    public List<String> getAspectResult(String aspectRuleFileName) {
+    public List<String> getAspectResult(String aspectRuleFileName, String target) {
         try {
 
             try (InputStream resourceAsStream = BazelLeafPlugin.class.getClassLoader().getResourceAsStream("aspects/" + aspectRuleFileName)) {
@@ -43,7 +41,7 @@ public class AspectRunner {
                     IOUtils.copy(resourceAsStream, outputStream);
                     //bazel build //MyExample:example --aspects print.bzl%print_aspect
                     ProcessBuilder builder = new ProcessBuilder();
-                    builder.command(mConfig.bazelBin, "build", "--symlink_prefix=" + mConfig.buildOutputDir, mBazelFullPathTarget, "--aspects", aspectRuleFile + "%print_aspect");
+                    builder.command(mConfig.bazelBin, "build", "--symlink_prefix=" + mConfig.buildOutputDir, mConfig.targetPath + ":" + target, "--aspects", aspectRuleFile + "%print_aspect");
                     builder.directory(mConfig.workspaceRootFolder);
                     final File aspectOutputFile = new File(mAspectsFolder, aspectRuleFileName + ".txt");
                     builder.redirectOutput(aspectOutputFile);
@@ -54,7 +52,7 @@ public class AspectRunner {
                         for (String errorLine : Files.readAllLines(aspectErrOutputFile.toPath())) {
                             System.out.println("ASPECT ERROR: " + errorLine);
                         }
-                        throw new IllegalStateException("Failed to run " + aspectRuleFileName + " aspect on " + mBazelFullPathTarget,
+                        throw new IllegalStateException("Failed to run " + aspectRuleFileName + " aspect on " + mConfig.targetPath + ":" + target,
                                 new IOException("Got process exit code " + exitCode));
                     }
 

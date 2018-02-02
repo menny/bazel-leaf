@@ -9,7 +9,7 @@ import org.gradle.api.tasks.Exec;
 import java.util.List;
 
 public interface Strategy {
-    Exec createBazelBuildTask(Project project);
+    Exec createBazelExecTask(Project project);
 
-    List<BazelPublishArtifact> getBazelArtifacts(AspectRunner aspectRunner, Project project, Exec bazelBuildTask);
+    List<BazelPublishArtifact> getBazelArtifacts(AspectRunner aspectRunner, Project project, Exec bazelExecTask);
 }

@@ -19,6 +19,16 @@ public class BazelLeafConfig {
         this.target = target;
     }
 
+    private String testTarget;
+
+    public String getTestTarget() {
+        return testTarget;
+    }
+
+    public void setTestTarget(String testTarget) {
+        this.testTarget = testTarget;
+    }
+
     private BazelLeafConfig verifyConfigured() {
         if (target == null || target.isEmpty()) {
             throw new IllegalArgumentException("Specify the target to build using Bazel, by adding \"bazel {target = 'target-name'}\" to the module's build.gradle file.");
@@ -37,15 +47,17 @@ public class BazelLeafConfig {
                 getBazelBinPath(project),
                 "/" + outputPath.replace(":", "/"),
                 target,
+                testTarget,
                 project.getRootProject().getProjectDir(),
                 project.getRootProject().getBuildDir().getAbsolutePath() + "/bazel-build/");
     }
 
     public static class Decorated {
-        private Decorated(String bazelBin, String targetPath, String targetName, File workspaceRootFolder, String buildOutputDir) {
+        private Decorated(String bazelBin, String targetPath, String targetName, String testTargetName, File workspaceRootFolder, String buildOutputDir) {
             this.bazelBin = bazelBin;
             this.targetPath = targetPath;
             this.targetName = targetName;
+            this.testTargetName = testTargetName;
             this.buildOutputDir = buildOutputDir;
             this.workspaceRootFolder = workspaceRootFolder;
         }
@@ -54,6 +66,7 @@ public class BazelLeafConfig {
         public final String targetPath;
         public final String targetName;
         public final File workspaceRootFolder;
+        public final String testTargetName;
         public final String buildOutputDir;
     }
 

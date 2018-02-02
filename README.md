@@ -51,9 +51,14 @@ bazel {
     target = 'jar'
 }
 ```
-
+* you may add a test-target, which will be used when `./gradlew test` is called:
+```
+bazel {
+    target = 'jar'
+    testTarget = 'AllTests'
+}
+```
 # Road Map
-* Support for running tests using JUnit.
 * Support for running tests using Robolectric.
 * Support for remote (Maven?) dependencies.
 
@@ -61,6 +66,7 @@ bazel {
 * In most cases, you'll need to first build the project from command line before importing it into Android Studio. For this project, run
 `./gradlew :app:assembleDebug` before importing into Android Studio, or before doing gradle-sync for the first time.
 * When running a gradle task from the Android Studio UI, you'll fail, and get the following error: `Error running 'bazel-leaf:app [assembleDebug]': com.intellij.openapi.externalSystem.service.execution.ExternalSystemRunConfiguration cannot be cast to com.intellij.execution.configurations.ModuleBasedConfiguration` Still trying to figure this one out.
+* When using a Maven dependency in Bazel, Android-Studio will not detect that.
 
 # License
 ```
