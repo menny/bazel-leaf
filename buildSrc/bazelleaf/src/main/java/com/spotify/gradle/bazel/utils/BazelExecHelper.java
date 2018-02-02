@@ -11,49 +11,78 @@ import java.util.List;
 
 public class BazelExecHelper {
 
-    public static class BazelBuilder {
+    public static class BazelExec {
         private final ProcessBuilder mProcessBuilder;
-        private final File mOutputFile;
 
-        BazelBuilder(ProcessBuilder processBuilder, File outputFile) {
+        BazelExec(ProcessBuilder processBuilder) {
             mProcessBuilder = processBuilder;
-            mOutputFile = outputFile;
         }
 
         public ProcessBuilder getProcessBuilder() {
             return mProcessBuilder;
         }
 
-        public List<String> start() throws IOException, InterruptedException {
+        public RunResult start() throws IOException, InterruptedException {
             ensurePathExists(mProcessBuilder.redirectOutput().file());
             ensurePathExists(mProcessBuilder.redirectError().file());
 
             final int exitCode = mProcessBuilder.start().waitFor();
-            final List<String> bazelOutput = Files.readAllLines(mOutputFile.toPath());
+            final RunResult result = new RunResult(exitCode,
+                    Files.readAllLines(mProcessBuilder.redirectOutput().file().toPath()),
+                    Files.readAllLines(mProcessBuilder.redirectError().file().toPath()));
             if (exitCode != 0) {
-                bazelOutput.forEach(log -> System.out.println("Bazel error: " + log));
-                throw new IOException("Got process exit code " + exitCode + " when running bazel " + Arrays.toString(mProcessBuilder.command().toArray(new String[0])));
+                result.getErrorOutput().forEach(log -> System.err.println("Bazel error: " + log));
+                result.getStandardOutput().forEach(log -> System.out.println("Bazel std: " + log));
+                throw new IOException("Got process exit code " + exitCode + " when running bazel " + toString());
             }
 
-            //yes.... We need to read the ERROR output stream. Need to figure this out.
-            return bazelOutput;
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "BazelExec: " + Arrays.toString(mProcessBuilder.command().toArray(new String[0])) + ". Output to " + mProcessBuilder.redirectError().file().getAbsolutePath();
         }
     }
 
-    public static BazelBuilder createBazelRun(BazelLeafConfig.Decorated config, String targetPath, String target, String bazelCommand, String... args) {
+    public static class RunResult {
+        private final int mExitCode;
+        private final List<String> mStandardOutput;
+        private final List<String> mErrorOutput;
+
+        RunResult(int exitCode, List<String> standardOutput, List<String> errorOutput) {
+            mExitCode = exitCode;
+            mStandardOutput = standardOutput;
+            mErrorOutput = errorOutput;
+        }
+
+        public int getExitCode() {
+            return mExitCode;
+        }
+
+        public List<String> getStandardOutput() {
+            return mStandardOutput;
+        }
+
+        public List<String> getErrorOutput() {
+            return mErrorOutput;
+        }
+    }
+
+    public static BazelExec createBazelRun(BazelLeafConfig.Decorated config, String target, String bazelCommand, String... args) {
         ProcessBuilder builder = new ProcessBuilder();
-        ArrayList<String> execArgs = new ArrayList<>(Arrays.asList(config.bazelBin, bazelCommand, "--symlink_prefix=" + config.buildOutputDir, targetPath + ":" + target));
+        ArrayList<String> execArgs = new ArrayList<>(Arrays.asList(config.bazelBin, bazelCommand, "--symlink_prefix=" + config.buildOutputDir));
+        if (target != null && target.length() > 0) {
+            execArgs.add(config.targetPath + ":" + target);
+        }
         execArgs.addAll(Arrays.asList(args));
         builder.command(execArgs);
         builder.directory(config.workspaceRootFolder);
 
+        builder.redirectOutput(new File(config.buildOutputDir, config.targetPath + "/runner_" + bazelCommand + "/" + target + ".txt"));
+        builder.redirectError(new File(config.buildOutputDir, config.targetPath + "/runner_" + bazelCommand + "/" + target + ".err"));
 
-        final File standardOutputFile = new File(config.buildOutputDir, targetPath + "/runner_" + bazelCommand + "/" + target + ".txt");
-        builder.redirectOutput(standardOutputFile);
-        final File errorOutputFile = new File(config.buildOutputDir, targetPath + "/runner_" + bazelCommand + "/" + target + ".err");
-        builder.redirectError(errorOutputFile);
-
-        return new BazelBuilder(builder, errorOutputFile);
+        return new BazelExec(builder);
     }
 
     private static void ensurePathExists(File outputFile) throws IOException {

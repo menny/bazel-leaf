@@ -2,12 +2,13 @@ package com.spotify.gradle.bazel;
 
 import com.spotify.gradle.bazel.strategies.Factory;
 import com.spotify.gradle.bazel.strategies.Strategy;
+import com.spotify.gradle.bazel.tasks.BazelCleanTask;
 
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.Task;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.Dependency;
-import org.gradle.api.tasks.Exec;
 import org.gradle.plugins.ide.idea.IdeaPlugin;
 import org.gradle.plugins.ide.idea.model.IdeaModule;
 
@@ -45,8 +46,7 @@ public class BazelLeafPlugin implements Plugin<Project> {
         /*
          * creating a Bazel-Build task
          */
-        //note: Bazel must use the same folder for all outputs, so we use the build-folder of the root-project
-        final Exec bazelBuildTask = strategy.createBazelExecTask(project);
+        final Task bazelBuildTask = strategy.createBazelExecTask(project);
 
         /*
          * Adding build configurations
@@ -86,25 +86,22 @@ public class BazelLeafPlugin implements Plugin<Project> {
         final IdeaModule ideaModule = ideaPlugin.getModel().getModule();
         ideaModule.setSourceDirs(getSourceFoldersFromBazelAspect(rootProject, aspectRunner, config.targetName));
 
-        System.out.println("target " + config.targetName + " deps:");
-        getModuleDepsFromBazel(aspectRunner, config.targetName).forEach(System.out::println);
         /*
          * Creating a CLEAN task in the root project
          */
         if (rootProject.getTasksByName("bazelClean", false/*only search the root project*/).isEmpty()) {
-            final Exec bazelCleanTask = (Exec) rootProject.task(Collections.singletonMap("type", Exec.class), "bazelClean");
-            bazelCleanTask.setWorkingDir(config.workspaceRootFolder);
-            bazelCleanTask.setCommandLine(config.bazelBin, "clean", "--symlink_prefix=" + config.buildOutputDir);
-
+            final BazelCleanTask bazelCleanTask = (BazelCleanTask) rootProject.task(Collections.singletonMap("type", BazelCleanTask.class), "bazelClean");
+            bazelCleanTask.setBazelConfig(config);
             rootProject.getTasks().findByPath(":clean").dependsOn(bazelCleanTask);
         }
 
+        /*
+         * Adding tests
+         */
         if (config.testTargetName != null && config.testTargetName.length() > 0) {
             final Strategy testStrategy = Factory.buildStrategy(aspectRunner.getAspectResult("get_rule_kind.bzl", config.testTargetName).stream().findFirst().orElse("java_test"), config);
-            final Exec bazelTestTask = testStrategy.createBazelExecTask(project);
+            final Task bazelTestTask = testStrategy.createBazelExecTask(project);
             ideaModule.setTestSourceDirs(getSourceFoldersFromBazelAspect(rootProject, aspectRunner, config.testTargetName));
-            System.out.println("target " + config.testTargetName + " deps:");
-            getModuleDepsFromBazel(aspectRunner, config.testTargetName).forEach(System.out::println);
         }
     }
 

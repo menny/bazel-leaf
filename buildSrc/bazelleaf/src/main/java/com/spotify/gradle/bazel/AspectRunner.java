@@ -39,8 +39,9 @@ public class AspectRunner {
                 final File aspectRuleFile = new File(mAspectsFolder, aspectRuleFileName);
                 try (OutputStream outputStream = new FileOutputStream(aspectRuleFile, false)) {
                     IOUtils.copy(resourceAsStream, outputStream);
-                    BazelExecHelper.BazelBuilder builder = BazelExecHelper.createBazelRun(mConfig, mConfig.targetPath, target, "build", "--aspects", aspectRuleFile + "%print_aspect");
-                    return cleanUp(builder.start(), aspectRuleFileName);
+                    BazelExecHelper.BazelExec builder = BazelExecHelper.createBazelRun(mConfig, target, "build", "--aspects", aspectRuleFile + "%print_aspect");
+                    //yes... Aspect output is on the error channel.
+                    return cleanUp(builder.start().getErrorOutput(), aspectRuleFileName);
                 }
             }
         } catch (InterruptedException | IOException e) {
