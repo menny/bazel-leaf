@@ -1,13 +1,13 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 
 buildscript {
-    
+
     repositories {
         google()
         jcenter()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:3.1.0-alpha09'
+        classpath 'com.android.tools.build:gradle:3.1.0-beta1'
     }
 }
 
@@ -21,25 +21,3 @@ allprojects {
 task clean(type: Delete) {
     delete rootProject.buildDir
 }
-
-
-//project(':lib1').afterEvaluate {
-//    project(':lib1').configurations.each {
-//        println '---'
-//        println it.name
-//
-//        if (!it.canBeResolved) {
-//            println "CANT BE RESOLVED!"
-//            println '---'
-//            return
-//        }
-//
-//        println it.resolve().each {
-//            println it.absolutePath
-//        }
-//
-//        println '---'
-//    }
-//
-//    throw new Exception('asdfadsf')
-//}
