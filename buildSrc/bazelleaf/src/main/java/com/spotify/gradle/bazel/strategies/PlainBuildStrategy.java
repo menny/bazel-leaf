@@ -3,11 +3,10 @@ package com.spotify.gradle.bazel.strategies;
 import com.spotify.gradle.bazel.AspectRunner;
 import com.spotify.gradle.bazel.BazelLeafConfig;
 import com.spotify.gradle.bazel.BazelPublishArtifact;
-import com.spotify.gradle.bazel.tasks.BazelCompileTask;
+import com.spotify.gradle.bazel.tasks.BazelBuildTask;
 
 import org.gradle.api.Project;
 import org.gradle.api.Task;
-import org.gradle.api.plugins.BasePlugin;
 
 import java.io.File;
 import java.util.Collections;
@@ -23,7 +22,7 @@ class PlainBuildStrategy implements Strategy {
 
     @Override
     public Task createBazelExecTask(Project project) {
-        final BazelCompileTask bazelBuildTask = (BazelCompileTask) project.task(Collections.singletonMap("type", BazelCompileTask.class), "compile");
+        final BazelBuildTask bazelBuildTask = (BazelBuildTask) project.task(Collections.singletonMap("type", BazelBuildTask.class), "compile");
         bazelBuildTask.setBazelConfig(mConfig);
         return bazelBuildTask;
     }

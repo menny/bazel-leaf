@@ -3,6 +3,8 @@ package com.spotify.gradle.bazel;
 import com.spotify.gradle.bazel.strategies.Factory;
 import com.spotify.gradle.bazel.strategies.Strategy;
 import com.spotify.gradle.bazel.tasks.BazelCleanTask;
+import com.spotify.gradle.bazel.tasks.BazelConfigTask;
+import com.spotify.gradle.bazel.tasks.BazelExpungeTask;
 
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
@@ -115,6 +117,14 @@ public class BazelLeafPlugin implements Plugin<Project> {
             final BazelCleanTask bazelCleanTask = (BazelCleanTask) rootProject.task(Collections.singletonMap("type", BazelCleanTask.class), "bazelClean");
             bazelCleanTask.setBazelConfig(config);
             rootProject.getTasks().findByPath(":clean").dependsOn(bazelCleanTask);
+        }
+
+        /*
+         * Creating a SUPER-CLEAN task in the root project
+         */
+        if (rootProject.getTasksByName("bazelExpungeClean", false/*only search the root project*/).isEmpty()) {
+            final BazelConfigTask task = (BazelConfigTask) rootProject.task(Collections.singletonMap("type", BazelExpungeTask.class), "bazelExpungeClean");
+            task.setBazelConfig(config);
         }
 
         /*

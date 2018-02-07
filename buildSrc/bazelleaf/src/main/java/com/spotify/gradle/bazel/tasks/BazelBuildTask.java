@@ -6,17 +6,17 @@ import com.spotify.gradle.bazel.utils.BazelExecHelper;
 import org.gradle.api.plugins.BasePlugin;
 
 
-public class BazelCleanTask extends BazelExecTaskBase {
+public class BazelBuildTask extends BazelExecTaskBase {
 
     @Override
     protected BazelExecHelper.BazelExec createBazelExec(BazelLeafConfig.Decorated config) {
-        return BazelExecHelper.createBazelRun(config, "", "clean");
+        return BazelExecHelper.createBazelRun(config, config.targetName, "build");
     }
 
     @Override
-    public void setBazelConfig(BazelLeafConfig.Decorated config) {
-        super.setBazelConfig(config);
-        setDescription("Cleans Bazel workspace");
+    public void setBazelConfig(BazelLeafConfig.Decorated bazelConfig) {
+        super.setBazelConfig(bazelConfig);
+        setDescription("Compiles Bazel target " + bazelConfig.targetPath + ":" + bazelConfig.targetName);
         setGroup(BasePlugin.BUILD_GROUP);
     }
 }
