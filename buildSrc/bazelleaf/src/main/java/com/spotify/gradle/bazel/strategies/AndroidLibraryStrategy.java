@@ -3,16 +3,10 @@ package com.spotify.gradle.bazel.strategies;
 import com.spotify.gradle.bazel.AspectRunner;
 import com.spotify.gradle.bazel.BazelLeafConfig;
 import com.spotify.gradle.bazel.BazelPublishArtifact;
+import com.spotify.gradle.bazel.tasks.BazelBuildTask;
 
 import org.gradle.api.Project;
 import org.gradle.api.Task;
-import org.gradle.api.internal.file.archive.ZipFileTree;
-import org.gradle.api.plugins.BasePlugin;
-import org.gradle.api.tasks.bundling.Jar;
-import org.gradle.api.tasks.bundling.ZipEntryCompression;
-import org.gradle.internal.hash.DefaultContentHasherFactory;
-import org.gradle.internal.hash.DefaultFileHasher;
-import org.gradle.internal.hash.DefaultStreamHasher;
 
 import java.io.File;
 import java.util.Collections;
@@ -25,28 +19,22 @@ class AndroidLibraryStrategy extends PlainBuildStrategy {
     }
 
     @Override
+    public Task createBazelExecTask(Project project) {
+        final BazelBuildTask bazelBuildTask = (BazelBuildTask) super.createBazelExecTask(project);
+        //using the implicit output `aar` in this build task.
+        bazelBuildTask.setBazelConfig(new BazelLeafConfig.Decorated(
+                mConfig.bazelBin,
+                mConfig.targetPath, mConfig.targetName + ".aar", mConfig.testTargetName,
+                mConfig.workspaceRootFolder, mConfig.buildOutputDir));
+        return bazelBuildTask;
+    }
+
+    @Override
     public List<BazelPublishArtifact> getBazelArtifacts(AspectRunner aspectRunner, Project project, Task bazelExecTask) {
-        //we're going to manipulate the outs of this task:
-        //using the Bazel outs, we'll construct a valid AAR file and give that to Gradle
+        //since we are using the implicit output `aar` we know exactly what output to expect.
+        //also, Bazel will not report the AAR output anyway.
         final File outputArtifactFolder = super.getBazelArtifacts(aspectRunner, project, bazelExecTask).get(0).getFile().getParentFile();
         final File aarOutputFile = new File(outputArtifactFolder, mConfig.targetName + ".aar");
-        Jar aarCreationTask = (Jar) bazelExecTask.getProject().task(Collections.singletonMap("type", Jar.class), bazelExecTask.getName() + "_AarPackage");
-        aarCreationTask.dependsOn(bazelExecTask);
-        aarCreationTask.doFirst(task -> new File(outputArtifactFolder, "lib" + mConfig.targetName + ".jar").renameTo(new File(outputArtifactFolder, "classes.jar")));
-        aarCreationTask.setEntryCompression(ZipEntryCompression.STORED);
-        aarCreationTask.setMetadataCharset("UTF-8");
-        aarCreationTask.setBaseName(mConfig.targetName);
-        aarCreationTask.setDescription("Package an AAR from Bazel outputs.");
-        aarCreationTask.setGroup(BasePlugin.BUILD_GROUP);
-        aarCreationTask.setExtension("aar");
-        aarCreationTask.setDestinationDir(outputArtifactFolder);
-        aarCreationTask.from(
-                new ZipFileTree(new File(outputArtifactFolder, mConfig.targetName + "_files/resource_files.zip"),
-                        new File(outputArtifactFolder, "unzip/"), null, null, new DefaultFileHasher(new DefaultStreamHasher(new DefaultContentHasherFactory()))),
-                new File(outputArtifactFolder, "classes.jar"),
-                new File(outputArtifactFolder, mConfig.targetName + "_processed_manifest/AndroidManifest.xml"),
-                new File(outputArtifactFolder, mConfig.targetName + "_symbols/R.txt"));
-
-        return Collections.singletonList(new BazelPublishArtifact(aarCreationTask, aarOutputFile));
+        return Collections.singletonList(new BazelPublishArtifact(bazelExecTask, aarOutputFile));
     }
 }

@@ -53,7 +53,7 @@ public class BazelLeafConfig {
     }
 
     public static class Decorated {
-        private Decorated(String bazelBin, String targetPath, String targetName, String testTargetName, File workspaceRootFolder, String buildOutputDir) {
+        public Decorated(String bazelBin, String targetPath, String targetName, String testTargetName, File workspaceRootFolder, String buildOutputDir) {
             this.bazelBin = bazelBin;
             this.targetPath = targetPath;
             this.targetName = targetName;
