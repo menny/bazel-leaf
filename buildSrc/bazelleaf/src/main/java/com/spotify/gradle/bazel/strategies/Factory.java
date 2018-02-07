@@ -13,6 +13,7 @@ public class Factory {
             case "android_library":
                 return new AndroidLibraryStrategy(config);
             case "java_test":
+            case "android_local_test":
                 return new JavaTestStrategy(config);
             default:
                 System.out.println("Unsupported target kind " + kind + ". Currently, supporting java_library, java_test and android_library. Fix " + config.targetPath + ":" + config.targetName);

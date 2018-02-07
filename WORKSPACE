@@ -25,5 +25,14 @@ transitive_maven_jar(
 	    ]
 )
 
-load("@third_party//:generate_workspace.bzl", "generated_maven_jars")
-generated_maven_jars()
+#load("@third_party//:generate_workspace.bzl", "generated_maven_jars")
+#generated_maven_jars()
+
+# Robolectric support
+http_archive(
+ name = "robolectric",
+ url = "https://github.com/robolectric/robolectric/archive/bf4f7f9e3aa16f514f626bcff739749a3a9350c3.tar.gz",
+ strip_prefix = "robolectric-bf4f7f9e3aa16f514f626bcff739749a3a9350c3"
+)
+load("@robolectric//bazel:setup_robolectric.bzl", "setup_robolectric")
+setup_robolectric()
