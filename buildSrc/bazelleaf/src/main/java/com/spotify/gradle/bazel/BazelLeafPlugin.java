@@ -9,6 +9,7 @@ import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.Dependency;
+import org.gradle.api.artifacts.ProjectDependency;
 import org.gradle.plugins.ide.idea.IdeaPlugin;
 import org.gradle.plugins.ide.idea.model.IdeaModule;
 
@@ -16,6 +17,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -59,9 +61,28 @@ public class BazelLeafPlugin implements Plugin<Project> {
          * Adding build artifacts
          */
         strategy.getBazelArtifacts(aspectRunner, project, bazelBuildTask)
-                .forEach(bazelPublishArtifact ->
-                        defaultConfiguration.getOutgoing().getArtifacts().add(bazelPublishArtifact)
+                .forEach(bazelPublishArtifact -> {
+                            defaultConfiguration.getOutgoing().getArtifacts().add(bazelPublishArtifact);
+                        }
                 );
+        /*
+         * Setting up project dependencies
+         */
+        final Deps targetDeps = getAllDepsFromBazel(aspectRunner, config.targetName);
+        targetDeps.moduleDeps.stream().map(BazelLeafPlugin::convertLocalBazelDepToGradle).forEach(gradlePathToDep -> {
+            //this will add the dependency to the default configuration.
+            final ProjectDependency path = (ProjectDependency) project.getDependencies().project(Collections.singletonMap("path", gradlePathToDep));
+            System.out.println("Adding dependency " + path + " to " + project.getPath());
+            defaultConfiguration.getDependencies().add(path);
+            /*defaultConfiguration.getIncoming().beforeResolve(new Action<ResolvableDependencies>() {
+                @Override
+                public void execute(ResolvableDependencies resolvableDependencies) {
+                    resolvableDependencies.getArtifacts().getArtifacts().add(path.getArtifacts().iterator().next().)
+                }
+            });*/
+        });
+
+        //targetDeps.remoteWorkspaceDeps.forEach(d -> System.out.println("remote dep: " + d));
 
         /*
          * Exclude bazel build directories for IntelliJ's indexing
@@ -84,7 +105,8 @@ public class BazelLeafPlugin implements Plugin<Project> {
          */
         IdeaPlugin ideaPlugin = (IdeaPlugin) project.getPlugins().apply("idea");
         final IdeaModule ideaModule = ideaPlugin.getModel().getModule();
-        ideaModule.setSourceDirs(getSourceFoldersFromBazelAspect(rootProject, aspectRunner, config.targetName));
+        final Set<File> sourceFolders = getSourceFoldersFromBazelAspect(rootProject, aspectRunner, config.targetName);
+        ideaModule.setSourceDirs(sourceFolders);
 
         /*
          * Creating a CLEAN task in the root project
@@ -100,18 +122,61 @@ public class BazelLeafPlugin implements Plugin<Project> {
          */
         if (config.testTargetName != null && config.testTargetName.length() > 0) {
             final Strategy testStrategy = Factory.buildStrategy(aspectRunner.getAspectResult("get_rule_kind.bzl", config.testTargetName).stream().findFirst().orElse("java_test"), config);
-            final Task bazelTestTask = testStrategy.createBazelExecTask(project);
+            testStrategy.createBazelExecTask(project);
             ideaModule.setTestSourceDirs(getSourceFoldersFromBazelAspect(rootProject, aspectRunner, config.testTargetName));
+            /*
+             * Setting up test project dependencies
+             */
+            /*System.out.println(config.testTargetName + " deps:");
+            final Deps testTargetDeps = getAllDepsFromBazel(aspectRunner, config.testTargetName);
+            testTargetDeps.moduleDeps.forEach(d -> System.out.println("local dep: " + d));
+            testTargetDeps.remoteWorkspaceDeps.forEach(d -> System.out.println("remote dep: " + d));*/
         }
     }
 
-    private static List<String> getModuleDepsFromBazel(AspectRunner aspectRunner, String targetName) {
-        final Pattern pattern = Pattern.compile("^<target\\s*(.+)\\s*>$");
+    private static String convertLocalBazelDepToGradle(String bazelDep) {
+        // "//andlib/innerandlib:inneraar" -> ":andlib:innerandlib"
+        // "//lib4:jar" -> ":lib4"
+        final Matcher localModulesPattern = Pattern.compile("^/(/.+):.+$").matcher(bazelDep);
+        if (localModulesPattern.matches()) {
+            return localModulesPattern.group(1).replace("/", ":");
+        } else {
+            throw new IllegalArgumentException("The Bazel dep '" + bazelDep + "' can not be converted into a local Gradle dependency");
+        }
+    }
+
+    private static Deps getAllDepsFromBazel(AspectRunner aspectRunner, String targetName) {
+        final Pattern pattern = Pattern.compile("^<.*target\\s*(.+)\\s*>$");
+
+        // like "//andlib/innerandlib:inneraar"
+        // like "//lib4:jar"
+        final Pattern localModulesPattern = Pattern.compile("^\\s*(//.+)\\s*$");
+        // like "@junit_junit//jar:jar"
+        final Pattern remoteWorkspaceModulesPattern = Pattern.compile("^\\s*(@.+)\\s*$");
+
         return aspectRunner.getAspectResult("get_deps.bzl", targetName).stream()
                 .map(pattern::matcher)
                 .filter(Matcher::matches)
                 .map(matcher -> matcher.group(1))
-                .collect(Collectors.toList());
+                .collect(Deps::new, (deps, bazelDepAnnotation) -> {
+                    final Matcher localModuleMatcher = localModulesPattern.matcher(bazelDepAnnotation);
+                    final Matcher remoteWorkspaceMatcher = remoteWorkspaceModulesPattern.matcher(bazelDepAnnotation);
+                    if (localModuleMatcher.matches()) {
+                        deps.moduleDeps.add(localModuleMatcher.group(1));
+                    } else if (remoteWorkspaceMatcher.matches()) {
+                        deps.remoteWorkspaceDeps.add(remoteWorkspaceMatcher.group(1));
+                    } else {
+                        throw new IllegalStateException("the bazel dep '" + bazelDepAnnotation + "' does not match any known annotations.");
+                    }
+                }, (deps, deps2) -> {
+                    deps.moduleDeps.addAll(deps2.moduleDeps);
+                    deps.remoteWorkspaceDeps.addAll(deps2.remoteWorkspaceDeps);
+                });
+    }
+
+    private static class Deps {
+        public final List<String> moduleDeps = new ArrayList<>();
+        public final List<String> remoteWorkspaceDeps = new ArrayList<>();
     }
 
     private static Set<File> getSourceFoldersFromBazelAspect(Project rootProject, AspectRunner runner, String targetName) {
