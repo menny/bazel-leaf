@@ -5,15 +5,14 @@ import com.spotify.gradle.bazel.strategies.Strategy;
 import com.spotify.gradle.bazel.tasks.BazelCleanTask;
 import com.spotify.gradle.bazel.tasks.BazelConfigTask;
 import com.spotify.gradle.bazel.tasks.BazelExpungeTask;
+import com.spotify.gradle.hatchej.HatchejImlAction;
+import com.spotify.gradle.hatchej.HatchejModel;
 
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.Dependency;
-import org.gradle.api.artifacts.ProjectDependency;
-import org.gradle.plugins.ide.idea.IdeaPlugin;
-import org.gradle.plugins.ide.idea.model.IdeaModule;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -22,7 +21,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -42,7 +40,7 @@ public class BazelLeafPlugin implements Plugin<Project> {
 
     private static void configurePlugin(Project project) {
         final BazelLeafConfig.Decorated config = project.getExtensions().getByType(BazelLeafConfig.class).decorate(project);
-
+        final HatchejModel hatchejModel = new HatchejModel();
         final Project rootProject = project.getRootProject();
 
         final AspectRunner aspectRunner = new AspectRunner(config);
@@ -59,56 +57,24 @@ public class BazelLeafPlugin implements Plugin<Project> {
         defaultConfiguration.setCanBeConsumed(true);
         defaultConfiguration.setCanBeResolved(true);
 
-        /*
-         * Adding build artifacts
-         */
         strategy.getBazelArtifacts(aspectRunner, project, bazelBuildTask)
                 .forEach(bazelPublishArtifact -> {
                             defaultConfiguration.getOutgoing().getArtifacts().add(bazelPublishArtifact);
                         }
                 );
-        /*
-         * Setting up project dependencies
-         */
+
+        hatchejModel.getSourceFolders().addAll(getSourceFoldersFromBazelAspect(rootProject, aspectRunner, config.targetName));
+
         final Deps targetDeps = getAllDepsFromBazel(aspectRunner, config.targetName);
         targetDeps.moduleDeps.stream().map(BazelLeafPlugin::convertLocalBazelDepToGradle).forEach(gradlePathToDep -> {
-            //this will add the dependency to the default configuration.
+            //
+            /* this will add the dependency to the default configuration. We will not do it, so Gradle will not try to build the Bazel graph - Bazel does it better.
             final ProjectDependency path = (ProjectDependency) project.getDependencies().project(Collections.singletonMap("path", gradlePathToDep));
             System.out.println("Adding dependency " + path + " to " + project.getPath());
             defaultConfiguration.getDependencies().add(path);
-            /*defaultConfiguration.getIncoming().beforeResolve(new Action<ResolvableDependencies>() {
-                @Override
-                public void execute(ResolvableDependencies resolvableDependencies) {
-                    resolvableDependencies.getArtifacts().getArtifacts().add(path.getArtifacts().iterator().next().)
-                }
-            });*/
+            */
+            hatchejModel.getProjectDependencies().add(gradlePathToDep);
         });
-
-        //targetDeps.remoteWorkspaceDeps.forEach(d -> System.out.println("remote dep: " + d));
-
-        /*
-         * Exclude bazel build directories for IntelliJ's indexing
-         * Adds <exclude .../> to the root project iml file
-         */
-        if (!rootProject.getPlugins().hasPlugin(IdeaPlugin.class)) {
-            IdeaPlugin rootIdeaPlugin = (IdeaPlugin) rootProject.getPlugins().apply("idea");
-
-            Set<File> set = new HashSet<>();
-            set.add(new File(config.workspaceRootFolder, "bazel-out"));
-            set.add(new File(config.workspaceRootFolder, "build/bazel_aspects"));
-            set.add(new File(config.buildOutputDir));
-            set.addAll(rootIdeaPlugin.getModel().getModule().getExcludeDirs());
-            // set is required to override the existing values
-            rootIdeaPlugin.getModel().getModule().setExcludeDirs(set);
-        }
-
-        /*
-         * Applying IDEA plugin, so IntelliJ will index the source files
-         */
-        IdeaPlugin ideaPlugin = (IdeaPlugin) project.getPlugins().apply("idea");
-        final IdeaModule ideaModule = ideaPlugin.getModel().getModule();
-        final Set<File> sourceFolders = getSourceFoldersFromBazelAspect(rootProject, aspectRunner, config.targetName);
-        ideaModule.setSourceDirs(sourceFolders);
 
         /*
          * Creating a CLEAN task in the root project
@@ -133,7 +99,7 @@ public class BazelLeafPlugin implements Plugin<Project> {
         if (config.testTargetName != null && config.testTargetName.length() > 0) {
             final Strategy testStrategy = Factory.buildStrategy(aspectRunner.getAspectResult("get_rule_kind.bzl", config.testTargetName).stream().findFirst().orElse("java_test"), config);
             testStrategy.createBazelExecTask(project);
-            ideaModule.setTestSourceDirs(getSourceFoldersFromBazelAspect(rootProject, aspectRunner, config.testTargetName));
+            hatchejModel.getTestSourceFolders().addAll(getSourceFoldersFromBazelAspect(rootProject, aspectRunner, config.testTargetName));
             /*
              * Setting up test project dependencies
              */
@@ -141,6 +107,12 @@ public class BazelLeafPlugin implements Plugin<Project> {
             final Deps testTargetDeps = getAllDepsFromBazel(aspectRunner, config.testTargetName);
             testTargetDeps.moduleDeps.forEach(d -> System.out.println("local dep: " + d));
             testTargetDeps.remoteWorkspaceDeps.forEach(d -> System.out.println("remote dep: " + d));*/
+        }
+
+        try {
+            new HatchejImlAction().modifyImlFile(project, hatchejModel);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 

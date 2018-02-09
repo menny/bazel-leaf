@@ -2,4 +2,5 @@ apply plugin: 'bazelleaf'
 
 bazel {
     target = 'aarbin'
+    //testTarget = 'AllTests'
 }

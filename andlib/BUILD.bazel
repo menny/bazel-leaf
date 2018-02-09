@@ -7,3 +7,15 @@ android_library(
         custom_package = "com.spotify.music.andlib",
         deps = ["//andlib/innerandlib:inneraar"]
     )
+
+android_local_test(
+  name = "AllTests",
+  test_class="com.spotify.music.andlib.AllTests",
+  srcs = glob(["andlib/src/test/java/**/*.java"]),
+  custom_package = "com.spotify.music.andlib",
+  deps = [
+    "//:aarbin",
+    "@robolectric//bazel:robolectric",
+    "//bazeltestutil:jar"
+  ],
+)

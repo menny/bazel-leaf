@@ -1,4 +1,4 @@
-description = 'Plugin that adds Bazel build tasks to a Gradle project.'
+description = 'Plugin that allows crud control over IML IntelliJ files.'
 ext.longDescription = description
 
 apply plugin: 'java'
@@ -8,7 +8,6 @@ repositories {
 }
 
 dependencies {
-    implementation project(':hatchej')
     implementation gradleApi()
     implementation 'commons-io:commons-io:2.6'
 }

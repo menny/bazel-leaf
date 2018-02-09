@@ -1,8 +1,8 @@
 # Prefix ID with the client so we don't get duplicates
-id: android-buildsrc-bazelleaf
+id: android-buildsrc-hatchej
 
 # A brief description of what the module does.
-description: Plugin that adds Bazel build tasks to a Gradle project.
+description: Plugin that allows crud control over IML IntelliJ files.
 
 # "System" in this case will be the host project for this module.
 system: client-android

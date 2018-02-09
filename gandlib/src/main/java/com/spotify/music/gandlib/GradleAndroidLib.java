@@ -1,5 +1,7 @@
 package com.spotify.music.gandlib;
 
-public class GradleAndroidLib {
+import com.spotify.music.innerandlib.InnerAndLib;
 
+public class GradleAndroidLib {
+//    InnerAndLib
 }
