@@ -59,6 +59,7 @@ ____Found 1 target...
 ____Elapsed time: 0.126s, Critical Path: 0.00s
          */
         return outputLines.stream()
+                //.peek(System.out::println)
                 .map(pattern::matcher)
                 .filter(Matcher::matches)
                 .map(matcher -> matcher.group(1))

@@ -9,6 +9,7 @@ public class HatchejModel {
     private Set<File> mSourceFolders = new HashSet<>();
     private Set<File> mTestSourceFolders = new HashSet<>();
     private Set<String> mProjectDependencies = new HashSet<>();
+    private Set<String> mLibraryDependencies = new HashSet<>();
 
     public Set<String> getProjectDependencies() {
         return mProjectDependencies;
@@ -24,5 +25,9 @@ public class HatchejModel {
 
     public Set<File> getExcludeFolders() {
         return mExcludeFolders;
+    }
+
+    public Set<String> getLibraryDependencies() {
+        return mLibraryDependencies;
     }
 }
