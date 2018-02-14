@@ -2,9 +2,10 @@ apply plugin: 'java-library'
 
 dependencies {
     implementation project(':lib2')
-    implementation "com.google.guava:guava:20.0"
-
+    //implementation files("libs/guava-20.0.jar")
     testImplementation 'junit:junit:4.12'
+    //implementation files('libs/guava-20.0.jar')
+    implementation files('libs/menny-guava-99.0.jar')
 }
 
 sourceCompatibility = "1.7"

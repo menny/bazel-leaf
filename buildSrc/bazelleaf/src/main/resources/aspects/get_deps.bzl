@@ -11,7 +11,7 @@ def _aspect_impl(target, ctx):
         # Iterate through the files that make up the sources and
         # print their paths.
         for dep in ctx.rule.attr.deps:
-            print(dep)
+            print("{}<FILES:>{}".format(dep.label, dep.files.to_list()))
     return []
 
 print_aspect = aspect(
