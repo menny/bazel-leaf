@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 public class BazelExecHelper {
@@ -28,8 +29,8 @@ public class BazelExecHelper {
 
             final int exitCode = mProcessBuilder.start().waitFor();
             final RunResult result = new RunResult(exitCode,
-                    Files.readAllLines(mProcessBuilder.redirectOutput().file().toPath()),
-                    Files.readAllLines(mProcessBuilder.redirectError().file().toPath()));
+                    mProcessBuilder.redirectOutput().file().exists() ? Files.readAllLines(mProcessBuilder.redirectOutput().file().toPath()) : Collections.emptyList(),
+                    mProcessBuilder.redirectError().file().exists() ? Files.readAllLines(mProcessBuilder.redirectError().file().toPath())  : Collections.emptyList());
             if (exitCode != 0) {
                 result.getErrorOutput().forEach(log -> System.err.println("Bazel error: " + log));
                 result.getStandardOutput().forEach(log -> System.out.println("Bazel std: " + log));
