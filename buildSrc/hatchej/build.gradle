@@ -10,4 +10,5 @@ repositories {
 dependencies {
     implementation gradleApi()
     implementation 'commons-io:commons-io:2.6'
+    implementation 'org.apache.commons:commons-lang3:3.7'
 }

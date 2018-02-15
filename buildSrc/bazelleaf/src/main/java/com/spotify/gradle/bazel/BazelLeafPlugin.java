@@ -5,6 +5,7 @@ import com.spotify.gradle.bazel.strategies.Strategy;
 import com.spotify.gradle.bazel.tasks.BazelCleanTask;
 import com.spotify.gradle.bazel.tasks.BazelConfigTask;
 import com.spotify.gradle.bazel.tasks.BazelExpungeTask;
+import com.spotify.gradle.bazel.utils.BazelExecHelper;
 import com.spotify.gradle.hatchej.HatchejImlAction;
 import com.spotify.gradle.hatchej.HatchejModel;
 
@@ -23,6 +24,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -40,6 +42,8 @@ public class BazelLeafPlugin implements Plugin<Project> {
 
     private static void configurePlugin(Project project) {
         final BazelLeafConfig.Decorated config = project.getExtensions().getByType(BazelLeafConfig.class).decorate(project);
+        final Properties bazelInfo = BazelExecHelper.getInfo(config);
+
         final HatchejModel hatchejModel = new HatchejModel();
         final Project rootProject = project.getRootProject();
 
@@ -65,12 +69,9 @@ public class BazelLeafPlugin implements Plugin<Project> {
 
         final Deps targetDeps = getAllDepsFromBazel(aspectRunner, config.targetName);
         targetDeps.moduleDeps.stream().map(BazelLeafPlugin::convertLocalBazelDepToGradle).forEach(hatchejModel.getProjectDependencies()::add);
-        targetDeps.remoteWorkspaceDeps.stream().map(bazelDep -> convertExternalJarBazelLocalPath(config, bazelDep))
-                .forEach(jarPath -> {
-                    //project.getDependencies().module()
-                    //defaultConfiguration.getDependencies().
-                });
-                //.forEach(hatchejModel.getLibraryDependencies()::add);
+        targetDeps.remoteWorkspaceDeps.stream().map(bazelDep -> {
+            return convertExternalJarBazelLocalPath(config, bazelInfo, bazelDep);
+        }).forEach(hatchejModel.getLibraryDependencies()::add);
         /*
          * Creating a CLEAN task in the root project
          */
@@ -98,18 +99,22 @@ public class BazelLeafPlugin implements Plugin<Project> {
         }
 
         try {
-            new HatchejImlAction().modifyImlFile(project, hatchejModel);
+            HatchejImlAction hatchejImlAction = new HatchejImlAction();
+            hatchejImlAction.modifyImlFile(project, hatchejModel);
+            hatchejImlAction.addLibraryFiles(project, hatchejModel);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    private static String convertExternalJarBazelLocalPath(BazelLeafConfig.Decorated config, String pathToExternalFile) {
+    private static String convertExternalJarBazelLocalPath(BazelLeafConfig.Decorated config,
+                                                           Properties bazelInfo,
+                                                           String pathToExternalFile) {
         //converts
         //external/com_google_guava_guava/jar/guava-20.0.jar
         //to
         //FULL_PATH_TO_REPO/build/bazel-build/bazel-leaf/external/com_google_guava_guava/jar/guava-20.0.jar
-        return String.format("%s%s/%s", config.buildOutputDir, config.workspaceRootFolder.getName(), pathToExternalFile);
+        return String.format("%s/%s", bazelInfo.getProperty("output_base"), pathToExternalFile);
     }
 
     private static String convertLocalBazelDepToGradle(String bazelDep) {
