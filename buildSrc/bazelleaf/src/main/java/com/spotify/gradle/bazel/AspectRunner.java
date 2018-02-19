@@ -16,6 +16,10 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class AspectRunner {
+
+    // the 'noop' group shouldn't exist and isn't expected to exist.  This should avoid the default output_group execution.
+    private static final String NOOP_OUTPUT_GROUP = "noop";
+
     private final BazelLeafConfig.Decorated mConfig;
     private final File mAspectsFolder;
 
@@ -39,7 +43,8 @@ public class AspectRunner {
                 final File aspectRuleFile = new File(mAspectsFolder, aspectRuleFileName);
                 try (OutputStream outputStream = new FileOutputStream(aspectRuleFile, false)) {
                     IOUtils.copy(resourceAsStream, outputStream);
-                    BazelExecHelper.BazelExec builder = BazelExecHelper.createBazelRun(mConfig, target, "build", "--aspects", aspectRuleFile + "%print_aspect");
+                    String outputGroupArg = "--output_groups=" + NOOP_OUTPUT_GROUP;
+                    BazelExecHelper.BazelExec builder = BazelExecHelper.createBazelRun(mConfig, target, "build", outputGroupArg, "--aspects", aspectRuleFile + "%print_aspect");
                     //yes... Aspect output is on the error channel.
                     return cleanUp(builder.start().getErrorOutput(), aspectRuleFileName);
                 }
