@@ -1,13 +1,19 @@
 package com.spotify.gradle.hatchej;
 
+import org.apache.commons.lang3.StringUtils;
 import org.gradle.api.Project;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Predicate;
 
@@ -18,7 +24,100 @@ import groovy.util.XmlParser;
 
 public class HatchejImlAction {
 
-    public void modifyImlFile(final Project project, final HatchejModel hatchejModel) throws Exception {
+    Logger logger = LoggerFactory.getLogger(getClass());
+
+    public void addLibraryFiles(final Project project, final HatchejModel hatchejModel)
+            throws IOException {
+
+        /**
+         * Create file(s) for jar references in the /.idea/libraries directory
+         * <component name="libraryTable">
+         * <library name="guava-20.0">
+         * <CLASSES>
+         * <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.google.guava/guava/20.0/89507701249388e1ed5ddcf8c41f4ce1be7831ef/guava-20.0.jar!/" />
+         * </CLASSES>
+         * <JAVADOC />
+         * <SOURCES>
+         * <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.google.guava/guava/20.0/9c8493c7991464839b612d7547d6c263adf08f75/guava-20.0-sources.jar!/" />
+         * </SOURCES>
+         * </library>
+         * </component>
+         */
+        File ideaLibrariesDir = new File(project.getRootDir(), ".idea/libraries");
+        if (!ideaLibrariesDir.isDirectory() || !ideaLibrariesDir.exists()) {
+            return; // not running within IntelliJ workspace
+        }
+
+        hatchejModel.getLibraryDependencies().stream().forEach(dependency -> {
+            try {
+                createLibraryFileIfNotExists(ideaLibrariesDir, dependency);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    private void createLibraryFileIfNotExists(File ideaLibrariesDir, String dependency)
+            throws IOException {
+        String path = getJarUrl(dependency);
+        String name = getJarName(path);
+        String normalizedName = normalizePath(name);
+
+        File ideaLibraryFile = new File(ideaLibrariesDir, normalizedName + ".xml");
+        if (!ideaLibraryFile.exists()) {
+            final Node componentRootNode = createNode("component", "name", "libraryTable");
+
+            final Node libraryNode = createLibraryNode(name);
+            componentRootNode.append(libraryNode);
+
+            Node classes = libraryNode.appendNode("CLASSES");
+            classes.append(createRootNode(path));
+
+            libraryNode.appendNode("JAVADOC");
+            libraryNode.appendNode("SOURCES");
+
+            FileWriter fileWriter = new FileWriter(ideaLibraryFile);
+            new XmlNodePrinter(new PrintWriter(fileWriter)).print(componentRootNode);
+        } else {
+            logger.debug("IDEA library file {} already exists", ideaLibraryFile.getAbsolutePath());
+        }
+    }
+
+    private String getJarName(String path) {
+        // take the name of the file and normalize without the .jar
+        String name = new File(path).getName();
+        return StringUtils.substringBeforeLast(name, ".");
+    }
+
+    private String getJarUrl(String path) {
+        String prefix = "jar://";
+        String suffix = "!/";
+
+        String jarUrl = path;
+        if (!StringUtils.startsWith(path, prefix) && !StringUtils.endsWith(path, suffix)) {
+            jarUrl = StringUtils.join(prefix, path, suffix);
+        } else {
+            logger.warn("Unable to create the URL for the library {}", path);
+        }
+        return jarUrl;
+    }
+
+    private Node createNode(String nodeName, String attributeName, String attributeValue) {
+        Map<String, String> attributes = new HashMap<>(1);
+        attributes.put(attributeName, attributeValue);
+        return new Node(null, nodeName, attributes);
+    }
+
+    private Node createLibraryNode(String name) {
+        return createNode("library", "name", name);
+    }
+
+    private Node createRootNode(String path) {
+        return createNode("root", "url", path);
+    }
+
+    public void modifyImlFile(final Project project, final HatchejModel hatchejModel)
+            throws Exception {
         final File imlFile = new File(project.getProjectDir().getAbsoluteFile(), project.getName() + ".iml");
         if (!imlFile.exists()) return;//not running within IntelliJ workspace
 
@@ -49,12 +148,32 @@ public class HatchejImlAction {
         }
     }
 
+    /**
+     * Converting the path to the &lt;library&gt;.xml naming convention.  The '-', '.', and '/' are converted to '_'.
+     *
+     * @param path the path to convert
+     * @return a converted path
+     */
+    private String normalizePath(String path) {
+        return (path != null ? path.replace('/', '_').replace('-', '_').replace('.', '_') : null);
+    }
+
     private Node projectModuleNode(String path) {
         //<orderEntry type="module" module-name="lib2" exported="" />
-        HashMap<String, String> attributes = new HashMap<>(2);
+        HashMap<String, String> attributes = new HashMap<>(3);
         attributes.put("type", "module");
         attributes.put("module-name", path.substring(1 + path.lastIndexOf(":")));
         attributes.put("exported", "");
+        return new Node(null, "orderEntry", attributes);
+    }
+
+    private Node libraryModuleNode(String path) {
+        // <orderEntry type="library" exported="" name="_Users_abeggs_spotify_bazel_leaf_lib5_libs_menny_guava_99_0a_jar" level="project" />
+        HashMap<String, String> attributes = new LinkedHashMap<>(4);
+        attributes.put("type", "library");
+        attributes.put("name", path);
+        attributes.put("exported", "");
+        attributes.put("level", "project");
         return new Node(null, "orderEntry", attributes);
     }
 

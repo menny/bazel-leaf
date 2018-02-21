@@ -5,6 +5,7 @@ import com.spotify.gradle.bazel.strategies.Strategy;
 import com.spotify.gradle.bazel.tasks.BazelCleanTask;
 import com.spotify.gradle.bazel.tasks.BazelConfigTask;
 import com.spotify.gradle.bazel.tasks.BazelExpungeTask;
+import com.spotify.gradle.bazel.utils.BazelExecHelper;
 import com.spotify.gradle.hatchej.HatchejImlAction;
 import com.spotify.gradle.hatchej.HatchejModel;
 
@@ -23,6 +24,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -40,6 +42,8 @@ public class BazelLeafPlugin implements Plugin<Project> {
 
     private static void configurePlugin(Project project) {
         final BazelLeafConfig.Decorated config = project.getExtensions().getByType(BazelLeafConfig.class).decorate(project);
+        final Properties bazelInfo = BazelExecHelper.getInfo(config);
+
         final HatchejModel hatchejModel = new HatchejModel();
         final Project rootProject = project.getRootProject();
 
@@ -57,25 +61,17 @@ public class BazelLeafPlugin implements Plugin<Project> {
         defaultConfiguration.setCanBeConsumed(true);
         defaultConfiguration.setCanBeResolved(true);
 
-        strategy.getBazelArtifacts(aspectRunner, project, bazelBuildTask)
-                .forEach(bazelPublishArtifact -> {
-                            defaultConfiguration.getOutgoing().getArtifacts().add(bazelPublishArtifact);
-                        }
-                );
+        strategy.getBazelArtifacts(aspectRunner, project, bazelBuildTask).stream()
+                .peek(defaultConfiguration.getOutgoing().getArtifacts()::add)
+                .forEach(artifact -> bazelBuildTask.getOutputs().file(artifact.getFile()));
 
         hatchejModel.getSourceFolders().addAll(getSourceFoldersFromBazelAspect(rootProject, aspectRunner, config.targetName));
 
         final Deps targetDeps = getAllDepsFromBazel(aspectRunner, config.targetName);
-        targetDeps.moduleDeps.stream().map(BazelLeafPlugin::convertLocalBazelDepToGradle).forEach(gradlePathToDep -> {
-            //
-            /* this will add the dependency to the default configuration. We will not do it, so Gradle will not try to build the Bazel graph - Bazel does it better.
-            final ProjectDependency path = (ProjectDependency) project.getDependencies().project(Collections.singletonMap("path", gradlePathToDep));
-            System.out.println("Adding dependency " + path + " to " + project.getPath());
-            defaultConfiguration.getDependencies().add(path);
-            */
-            hatchejModel.getProjectDependencies().add(gradlePathToDep);
-        });
-
+        targetDeps.moduleDeps.stream().map(BazelLeafPlugin::convertLocalBazelDepToGradle).forEach(hatchejModel.getProjectDependencies()::add);
+        targetDeps.remoteWorkspaceDeps.stream().map(bazelDep -> {
+            return convertExternalJarBazelLocalPath(config, bazelInfo, bazelDep);
+        }).forEach(hatchejModel.getLibraryDependencies()::add);
         /*
          * Creating a CLEAN task in the root project
          */
@@ -100,20 +96,25 @@ public class BazelLeafPlugin implements Plugin<Project> {
             final Strategy testStrategy = Factory.buildStrategy(aspectRunner.getAspectResult("get_rule_kind.bzl", config.testTargetName).stream().findFirst().orElse("java_test"), config);
             testStrategy.createBazelExecTask(project);
             hatchejModel.getTestSourceFolders().addAll(getSourceFoldersFromBazelAspect(rootProject, aspectRunner, config.testTargetName));
-            /*
-             * Setting up test project dependencies
-             */
-            /*System.out.println(config.testTargetName + " deps:");
-            final Deps testTargetDeps = getAllDepsFromBazel(aspectRunner, config.testTargetName);
-            testTargetDeps.moduleDeps.forEach(d -> System.out.println("local dep: " + d));
-            testTargetDeps.remoteWorkspaceDeps.forEach(d -> System.out.println("remote dep: " + d));*/
         }
 
         try {
-            new HatchejImlAction().modifyImlFile(project, hatchejModel);
+            HatchejImlAction hatchejImlAction = new HatchejImlAction();
+            hatchejImlAction.modifyImlFile(project, hatchejModel);
+            hatchejImlAction.addLibraryFiles(project, hatchejModel);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private static String convertExternalJarBazelLocalPath(BazelLeafConfig.Decorated config,
+                                                           Properties bazelInfo,
+                                                           String pathToExternalFile) {
+        //converts
+        //external/com_google_guava_guava/jar/guava-20.0.jar
+        //to
+        //FULL_PATH_TO_REPO/build/bazel-build/bazel-leaf/external/com_google_guava_guava/jar/guava-20.0.jar
+        return String.format("%s/%s", bazelInfo.getProperty("output_base"), pathToExternalFile);
     }
 
     private static String convertLocalBazelDepToGradle(String bazelDep) {
@@ -128,25 +129,25 @@ public class BazelLeafPlugin implements Plugin<Project> {
     }
 
     private static Deps getAllDepsFromBazel(AspectRunner aspectRunner, String targetName) {
-        final Pattern pattern = Pattern.compile("^<.*target\\s*(.+)\\s*>$");
-
-        // like "//andlib/innerandlib:inneraar"
-        // like "//lib4:jar"
-        final Pattern localModulesPattern = Pattern.compile("^\\s*(//.+)\\s*$");
-        // like "@junit_junit//jar:jar"
-        final Pattern remoteWorkspaceModulesPattern = Pattern.compile("^\\s*(@.+)\\s*$");
-
+        //"//andlib/innerandlib:inneraar<FILES:>[<generated file andlib/innerandlib/inneraar.srcjar>"
+        final Pattern localModulesPattern = Pattern.compile("^(//.+)<FILES:>.*$");
+        //"@com_google_guava_guava//jar:jar<FILES:>[<source file external/com_google_guava_guava/jar/guava-20.0.jar>]"
+        final Pattern remoteWorkspaceModulesPattern = Pattern.compile("^@.*<FILES:>\\[(.*)\\]$");
+        //[<generated file andlib/innerandlib/inneraar.srcjar>, <generated file andlib/innerandlib/inneraar_resources-src.jar>]
+        final Pattern generatedFilesPattern = Pattern.compile("<.*file\\s*(.+)>");
         return aspectRunner.getAspectResult("get_deps.bzl", targetName).stream()
-                .map(pattern::matcher)
-                .filter(Matcher::matches)
-                .map(matcher -> matcher.group(1))
                 .collect(Deps::new, (deps, bazelDepAnnotation) -> {
                     final Matcher localModuleMatcher = localModulesPattern.matcher(bazelDepAnnotation);
                     final Matcher remoteWorkspaceMatcher = remoteWorkspaceModulesPattern.matcher(bazelDepAnnotation);
                     if (localModuleMatcher.matches()) {
                         deps.moduleDeps.add(localModuleMatcher.group(1));
                     } else if (remoteWorkspaceMatcher.matches()) {
-                        deps.remoteWorkspaceDeps.add(remoteWorkspaceMatcher.group(1));
+                        final Matcher generateFilesMatcher = generatedFilesPattern.matcher(remoteWorkspaceMatcher.group(1));
+                        if (generateFilesMatcher.matches()) {
+                            for (int matchIndex = 1; matchIndex < generateFilesMatcher.groupCount() + 1; matchIndex++) {
+                                deps.remoteWorkspaceDeps.add(generateFilesMatcher.group(matchIndex));
+                            }
+                        }
                     } else {
                         throw new IllegalStateException("the bazel dep '" + bazelDepAnnotation + "' does not match any known annotations.");
                     }

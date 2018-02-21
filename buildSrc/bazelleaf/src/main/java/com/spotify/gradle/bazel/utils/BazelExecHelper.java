@@ -4,11 +4,15 @@ import com.spotify.gradle.bazel.BazelLeafConfig;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringReader;
+import java.io.StringWriter;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
 
 public class BazelExecHelper {
 
@@ -84,6 +88,27 @@ public class BazelExecHelper {
         builder.redirectError(new File(config.buildOutputDir, config.targetPath + "/runner_" + bazelCommand + "/" + target + ".err"));
 
         return new BazelExec(builder);
+    }
+
+    public static Properties getInfo(BazelLeafConfig.Decorated config) {
+        try {
+            BazelExec infoExec = createBazelRun(config, "", "info");
+            RunResult start = infoExec.start();
+
+            StringWriter w = new StringWriter();
+            PrintWriter b = new PrintWriter(w);
+
+            start.getStandardOutput().forEach(b::println);
+
+            b.close();
+
+            Properties properties = new Properties();
+            properties.load(new StringReader(w.toString()));
+            return properties;
+        } catch (InterruptedException | IOException e) {
+            throw new RuntimeException(e);
+        }
+
     }
 
     private static void ensurePathExists(File outputFile) throws IOException {
