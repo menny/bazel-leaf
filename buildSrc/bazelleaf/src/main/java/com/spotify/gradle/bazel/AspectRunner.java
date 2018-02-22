@@ -41,9 +41,9 @@ public class AspectRunner {
         try {
             try (InputStream resourceAsStream = BazelLeafPlugin.class.getClassLoader().getResourceAsStream("aspects/" + aspectRuleFileName)) {
                 final File aspectRuleFile = new File(mAspectsFolder, aspectRuleFileName);
-                OutputStream outputStream = new FileOutputStream(aspectRuleFile, false);
-                IOUtils.copy(resourceAsStream, outputStream);
-                outputStream.close();
+                try (OutputStream outputStream = new FileOutputStream(aspectRuleFile, false)) {
+                    IOUtils.copy(resourceAsStream, outputStream);
+                }
 
                 String outputGroupArg = "--output_groups=" + NOOP_OUTPUT_GROUP;
                 BazelExecHelper.BazelExec builder = BazelExecHelper.createBazelRun(mConfig, target, "build", outputGroupArg, "--aspects", aspectRuleFile + "%print_aspect");
