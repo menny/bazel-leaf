@@ -9,12 +9,13 @@ import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.wrapper.Download;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URL;
+import java.net.URI;
 import java.util.Locale;
 import java.util.Set;
 
@@ -62,10 +63,8 @@ public class DownloadBazelTask extends DefaultTask {
         LOGGER.info("Downloading Bazel binary from %s to %s...", mDownloadUrl, mTargetFile);
 
         try {
-            getAnt().invokeMethod("get", map(
-                    "src", new URL(mDownloadUrl),
-                    "dest", mTargetFile,
-                    "retries", 2));
+            Download downloader = new Download(new DownloadProgressLogger(), "bazel-leaf", "0.0.1");
+            downloader.download(URI.create(mDownloadUrl), mTargetFile);
 
             getAnt().invokeMethod("chmod", map(
                     "file", mTargetFile,
@@ -117,5 +116,33 @@ public class DownloadBazelTask extends DefaultTask {
         }
 
         return null;
+    }
+
+    private static class DownloadProgressLogger extends org.gradle.wrapper.Logger {
+        private DownloadProgressLogger() {
+            super(false);
+            append("Downloading Bazel binary...");
+        }
+
+        @Override
+        public Appendable append(char c) {
+            super.append(c);
+            System.out.flush();
+            return this;
+        }
+
+        @Override
+        public Appendable append(CharSequence csq) {
+            super.append(csq);
+            System.out.flush();
+            return this;
+        }
+
+        @Override
+        public Appendable append(CharSequence csq, int start, int end) {
+            super.append(csq, start, end);
+            System.out.flush();
+            return this;
+        }
     }
 }
