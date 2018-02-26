@@ -32,7 +32,7 @@ facts:
   support_email: nyc-infra@spotify.com
 
   # Standard. Jira feature name.
-  jira_feature: Infrastructure [Marvin / Foundation]
+  jira_feature: Build System [NYC-Infra]
 
   # Standard. System-Z uses these string tags for grouping similar services.
   tags: ['android']

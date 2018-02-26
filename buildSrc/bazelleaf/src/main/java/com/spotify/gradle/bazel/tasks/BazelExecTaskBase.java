@@ -8,7 +8,9 @@ import org.gradle.api.tasks.TaskAction;
 
 import java.io.IOException;
 
-
+/**
+ * A base class that execute the Bazel binary.
+ */
 public abstract class BazelExecTaskBase extends DefaultTask implements BazelConfigTask {
 
     private BazelLeafConfig.Decorated mConfig;
@@ -19,7 +21,6 @@ public abstract class BazelExecTaskBase extends DefaultTask implements BazelConf
         try {
             bazelExec.start();
         } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
             throw new RuntimeException("Failed to clean using Bazel", e);
         }
     }

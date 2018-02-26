@@ -38,20 +38,17 @@ public class AspectRunner {
     }
 
     public List<String> getAspectResult(String aspectRuleFileName, String target) {
-        try {
-            try (InputStream resourceAsStream = BazelLeafPlugin.class.getClassLoader().getResourceAsStream("aspects/" + aspectRuleFileName)) {
-                final File aspectRuleFile = new File(mAspectsFolder, aspectRuleFileName);
-                try (OutputStream outputStream = new FileOutputStream(aspectRuleFile, false)) {
-                    IOUtils.copy(resourceAsStream, outputStream);
-                }
-
-                String outputGroupArg = "--output_groups=" + NOOP_OUTPUT_GROUP;
-                BazelExecHelper.BazelExec builder = BazelExecHelper.createBazelRun(mConfig, target, "build", outputGroupArg, "--aspects", aspectRuleFile + "%print_aspect");
-                //yes... Aspect output is on the error channel.
-                return cleanUp(builder.start().getErrorOutput(), aspectRuleFileName);
+        try (InputStream resourceAsStream = BazelLeafPlugin.class.getClassLoader().getResourceAsStream("aspects/" + aspectRuleFileName)) {
+            final File aspectRuleFile = new File(mAspectsFolder, aspectRuleFileName);
+            try (OutputStream outputStream = new FileOutputStream(aspectRuleFile, false)) {
+                IOUtils.copy(resourceAsStream, outputStream);
             }
+
+            String outputGroupArg = "--output_groups=" + NOOP_OUTPUT_GROUP;
+            BazelExecHelper.BazelExec builder = BazelExecHelper.createBazelRun(mConfig, target, "build", outputGroupArg, "--aspects", aspectRuleFile + "%print_aspect");
+            //yes... Aspect output is on the error channel.
+            return cleanUp(builder.start().getErrorOutput(), aspectRuleFileName);
         } catch (InterruptedException | IOException e) {
-            e.printStackTrace();
             throw new RuntimeException(e);
         }
     }
@@ -65,7 +62,6 @@ ____Found 1 target...
 ____Elapsed time: 0.126s, Critical Path: 0.00s
          */
         return outputLines.stream()
-                //.peek(System.out::println)
                 .map(pattern::matcher)
                 .filter(Matcher::matches)
                 .map(matcher -> matcher.group(1))

@@ -1,19 +1,26 @@
 package com.spotify.gradle.bazel.tasks;
 
-import static org.gradle.util.GUtil.map;
-
 import com.spotify.gradle.bazel.BazelLeafConfig;
 
 import org.gradle.api.DefaultTask;
 import org.gradle.api.Project;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.TaskAction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 
+import static org.gradle.util.GUtil.map;
+
+/**
+ * A Gradle task that download Bazel from the provided URL.
+ * See {@link #injectDownloadTasks(Project, BazelLeafConfig.Decorated)} for default usage.
+ */
 public class DownloadBazelTask extends DefaultTask {
+    private static final Logger LOGGER = LoggerFactory.getLogger(DownloadBazelTask.class);
 
     private File mTargetFile;
     private String mDownloadUrl;
@@ -49,7 +56,7 @@ public class DownloadBazelTask extends DefaultTask {
         if (!mTargetFile.getParentFile().exists() && !mTargetFile.getParentFile().mkdirs()) {
             throw new IOException("Failed to create parent folder for " + mTargetFile.getAbsolutePath());
         }
-        System.out.println("Downloading Bazel binary from " + mDownloadUrl + " to " + mTargetFile + "...");
+        LOGGER.info("Downloading Bazel binary from %s to %s...", mDownloadUrl, mTargetFile);
 
         try {
             getAnt().invokeMethod("get", map(
@@ -65,6 +72,11 @@ public class DownloadBazelTask extends DefaultTask {
         }
     }
 
+    /**
+     * Creates (if required) download tasks for the configured platforms.
+     * Essentially, will look at `gradle.properties` file, and will create a {@link DownloadBazelTask} for each configured
+     * platform (donated by `bazel.bin.url.linux`, `bazel.bin.url.macos` and `bazel.bin.url.windows`).
+     */
     public static void injectDownloadTasks(Project project, BazelLeafConfig.Decorated config) {
         Project rootProject = project.getRootProject();
 
@@ -73,9 +85,13 @@ public class DownloadBazelTask extends DefaultTask {
         injectTask(rootProject, "downloadBazelWindows", rootProject.getProperties().get("bazel.bin.url.windows"), config.bazelBin);
     }
 
-    private static void injectTask(Project rootProject, String taskName, Object urlValue, String bazelBinPath) {
-        if (urlValue instanceof String && ((String) urlValue).length() > 0) {
-            String url = (String) urlValue;
+    private static void injectTask(
+            Project rootProject,
+            String taskName,
+            Object urlValue,
+            String bazelBinPath) {
+        if (urlValue instanceof String && !((String) urlValue).isEmpty()) {
+            final String url = (String) urlValue;
 
             if (rootProject.getTasksByName(taskName, false).isEmpty()) {
                 final DownloadBazelTask downloadBazelTask = rootProject.getTasks().create(taskName, DownloadBazelTask.class);

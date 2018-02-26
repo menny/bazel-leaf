@@ -1,12 +1,11 @@
 package com.spotify.gradle.bazel;
 
+import org.apache.commons.lang3.StringUtils;
 import org.gradle.api.Task;
 import org.gradle.api.internal.artifacts.publish.AbstractPublishArtifact;
 
 import java.io.File;
 import java.util.Date;
-
-import javax.annotation.Nullable;
 
 public class BazelPublishArtifact extends AbstractPublishArtifact {
 
@@ -24,7 +23,7 @@ public class BazelPublishArtifact extends AbstractPublishArtifact {
 
     @Override
     public String getExtension() {
-        return mFile.getName().substring(mFile.getName().lastIndexOf(".") + 1);
+        return StringUtils.substringAfterLast(mFile.getName(), ".");
     }
 
     @Override
@@ -32,7 +31,7 @@ public class BazelPublishArtifact extends AbstractPublishArtifact {
         return getExtension();
     }
 
-    @Nullable
+    @javax.annotation.Nullable
     @Override
     public String getClassifier() {
         return null;
@@ -43,11 +42,9 @@ public class BazelPublishArtifact extends AbstractPublishArtifact {
         return mFile;
     }
 
-    @Nullable
+    @javax.annotation.Nullable
     @Override
     public Date getDate() {
         return new Date(mFile.lastModified());
     }
-
-
 }

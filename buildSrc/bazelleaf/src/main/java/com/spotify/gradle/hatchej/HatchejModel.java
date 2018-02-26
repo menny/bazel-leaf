@@ -5,11 +5,11 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class HatchejModel {
-    private Set<File> mExcludeFolders = new HashSet<>();
-    private Set<File> mSourceFolders = new HashSet<>();
-    private Set<File> mTestSourceFolders = new HashSet<>();
-    private Set<String> mProjectDependencies = new HashSet<>();
-    private Set<String> mLibraryDependencies = new HashSet<>();
+    private final Set<File> mExcludeFolders = new HashSet<>();
+    private final Set<File> mSourceFolders = new HashSet<>();
+    private final Set<File> mTestSourceFolders = new HashSet<>();
+    private final Set<String> mProjectDependencies = new HashSet<>();
+    private final Set<String> mLibraryDependencies = new HashSet<>();
 
     public Set<String> getProjectDependencies() {
         return mProjectDependencies;
