@@ -12,7 +12,7 @@ buildscript {
         }
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:3.1.0-beta2'
+        classpath 'com.android.tools.build:gradle:3.1.0-beta3'
         classpath "com.gradle:build-scan-plugin:${gradleScanPluginVersion}"
     }
 }
@@ -26,7 +26,7 @@ allprojects {
 }
 
 idea.module {
-    excludeDirs += [file('bazel-out'), file('build/bazel-out')]
+    excludeDirs += [file('bazel-out'), file('build/bazel-out'), file('build/bazel-build'), file('build/bazel_aspects')]
 }
 
 task clean(type: Delete) {
