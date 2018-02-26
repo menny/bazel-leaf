@@ -48,75 +48,87 @@ public class BazelLeafPlugin implements Plugin<Project> {
         /*
          * Adding download tasks to root project
          */
-        DownloadBazelTask.injectDownloadTasks(project, config);
+        final DownloadBazelTask downloadBazelBinTask = DownloadBazelTask.injectDownloadTask(project, config);
 
-        if (!new File(config.bazelBin).exists()) {
-            LOGGER.debug("Could not find Bazel binary at %s. Install Bazel on your machine, or set 'bazel.bin.path' value in your local.properties file.", config.bazelBin);
-        } else {
-            final Properties bazelInfo = BazelExecHelper.getInfo(config);
-
-            final HatchejModel hatchejModel = new HatchejModel();
-            final Project rootProject = project.getRootProject();
-
-            final AspectRunner aspectRunner = new AspectRunner(config);
-            final Strategy strategy = Factory.buildStrategy(aspectRunner.getAspectResult("get_rule_kind.bzl", config.targetName).stream().findFirst().orElse("java_library"), config);
-            /*
-             * creating a Bazel-Build task
-             */
-            final Task bazelBuildTask = strategy.createBazelExecTask(project);
-
-            /*
-             * Adding build configurations
-             */
-            final Configuration defaultConfiguration = project.getConfigurations().create(Dependency.DEFAULT_CONFIGURATION);
-            defaultConfiguration.setCanBeConsumed(true);
-            defaultConfiguration.setCanBeResolved(true);
-
-            strategy.getBazelArtifacts(aspectRunner, project, bazelBuildTask).stream()
-                    .peek(defaultConfiguration.getOutgoing().getArtifacts()::add)
-                    .forEach(artifact -> bazelBuildTask.getOutputs().file(artifact.getFile()));
-
-            hatchejModel.getSourceFolders().addAll(getSourceFoldersFromBazelAspect(rootProject, aspectRunner, config.targetName));
-
-            final Deps targetDeps = getAllDepsFromBazel(aspectRunner, config.targetName);
-            targetDeps.moduleDeps.stream().map(BazelLeafPlugin::convertLocalBazelDepToGradle).forEach(hatchejModel.getProjectDependencies()::add);
-            targetDeps.remoteWorkspaceDeps.stream().map(bazelDep -> {
-                return convertExternalJarBazelLocalPath(bazelInfo, bazelDep);
-            }).forEach(hatchejModel.getLibraryDependencies()::add);
-            /*
-             * Creating a CLEAN task in the root project
-             */
-            if (rootProject.getTasksByName("bazelClean", false/*only search the root project*/).isEmpty()) {
-                final BazelCleanTask bazelCleanTask = (BazelCleanTask) rootProject.task(Collections.singletonMap("type", BazelCleanTask.class), "bazelClean");
-                bazelCleanTask.setBazelConfig(config);
-                rootProject.getTasks().findByPath(":clean").dependsOn(bazelCleanTask);
-            }
-
-            /*
-             * Creating a SUPER-CLEAN task in the root project
-             */
-            if (rootProject.getTasksByName("bazelExpungeClean", false/*only search the root project*/).isEmpty()) {
-                final BazelConfigTask task = (BazelConfigTask) rootProject.task(Collections.singletonMap("type", BazelExpungeTask.class), "bazelExpungeClean");
-                task.setBazelConfig(config);
-            }
-
-            /*
-             * Adding tests
-             */
-            if (config.testTargetName != null && config.testTargetName.length() > 0) {
-                final Strategy testStrategy = Factory.buildStrategy(aspectRunner.getAspectResult("get_rule_kind.bzl", config.testTargetName).stream().findFirst().orElse("java_test"), config);
-                testStrategy.createBazelExecTask(project);
-                hatchejModel.getTestSourceFolders().addAll(getSourceFoldersFromBazelAspect(rootProject, aspectRunner, config.testTargetName));
-            }
-
-            try {
-                HatchejImlAction hatchejImlAction = new HatchejImlAction();
-                hatchejImlAction.modifyImlFile(project, hatchejModel);
-                hatchejImlAction.addLibraryFiles(project, hatchejModel);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
+        if (!checkIsBazelBinaryValid(config)) {
+            if (downloadBazelBinTask != null) {
+                LOGGER.debug("Bazel binary at %s is invalid. Trying to download...", config.bazelBin);
+                try {
+                    downloadBazelBinTask.download();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            } else {
+                throw new IllegalStateException(String.format("Bazel binary at %s is invalid, and download url was not defined in 'gradle.properties'.", config.bazelBin));
             }
         }
+        final Properties bazelInfo = BazelExecHelper.getInfo(config);
+
+        final HatchejModel hatchejModel = new HatchejModel();
+        final Project rootProject = project.getRootProject();
+
+        final AspectRunner aspectRunner = new AspectRunner(config);
+        final Strategy strategy = Factory.buildStrategy(aspectRunner.getAspectResult("get_rule_kind.bzl", config.targetName).stream().findFirst().orElse("java_library"), config);
+        /*
+         * creating a Bazel-Build task
+         */
+        final Task bazelBuildTask = strategy.createBazelExecTask(project);
+
+        /*
+         * Adding build configurations
+         */
+        final Configuration defaultConfiguration = project.getConfigurations().create(Dependency.DEFAULT_CONFIGURATION);
+        defaultConfiguration.setCanBeConsumed(true);
+        defaultConfiguration.setCanBeResolved(true);
+
+        strategy.getBazelArtifacts(aspectRunner, project, bazelBuildTask).stream()
+                .peek(defaultConfiguration.getOutgoing().getArtifacts()::add)
+                .forEach(artifact -> bazelBuildTask.getOutputs().file(artifact.getFile()));
+
+        hatchejModel.getSourceFolders().addAll(getSourceFoldersFromBazelAspect(rootProject, aspectRunner, config.targetName));
+
+        final Deps targetDeps = getAllDepsFromBazel(aspectRunner, config.targetName);
+        targetDeps.moduleDeps.stream().map(BazelLeafPlugin::convertLocalBazelDepToGradle).forEach(hatchejModel.getProjectDependencies()::add);
+        targetDeps.remoteWorkspaceDeps.stream().map(bazelDep -> {
+            return convertExternalJarBazelLocalPath(bazelInfo, bazelDep);
+        }).forEach(hatchejModel.getLibraryDependencies()::add);
+        /*
+         * Creating a CLEAN task in the root project
+         */
+        if (rootProject.getTasksByName("bazelClean", false/*only search the root project*/).isEmpty()) {
+            final BazelCleanTask bazelCleanTask = (BazelCleanTask) rootProject.task(Collections.singletonMap("type", BazelCleanTask.class), "bazelClean");
+            bazelCleanTask.setBazelConfig(config);
+            rootProject.getTasks().findByPath(":clean").dependsOn(bazelCleanTask);
+        }
+
+        /*
+         * Creating a SUPER-CLEAN task in the root project
+         */
+        if (rootProject.getTasksByName("bazelExpungeClean", false/*only search the root project*/).isEmpty()) {
+            final BazelConfigTask task = (BazelConfigTask) rootProject.task(Collections.singletonMap("type", BazelExpungeTask.class), "bazelExpungeClean");
+            task.setBazelConfig(config);
+        }
+
+        /*
+         * Adding tests
+         */
+        if (config.testTargetName != null && config.testTargetName.length() > 0) {
+            final Strategy testStrategy = Factory.buildStrategy(aspectRunner.getAspectResult("get_rule_kind.bzl", config.testTargetName).stream().findFirst().orElse("java_test"), config);
+            testStrategy.createBazelExecTask(project);
+            hatchejModel.getTestSourceFolders().addAll(getSourceFoldersFromBazelAspect(rootProject, aspectRunner, config.testTargetName));
+        }
+
+        try {
+            HatchejImlAction hatchejImlAction = new HatchejImlAction();
+            hatchejImlAction.modifyImlFile(project, hatchejModel);
+            hatchejImlAction.addLibraryFiles(project, hatchejModel);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static boolean checkIsBazelBinaryValid(BazelLeafConfig.Decorated config) {
+        return new File(config.bazelBin).exists();
     }
 
     private static String convertExternalJarBazelLocalPath(
@@ -153,7 +165,7 @@ public class BazelLeafPlugin implements Plugin<Project> {
                         final Matcher generateFilesMatcher = generatedFilesPattern.matcher(remoteWorkspaceMatcher.group(1));
                         if (generateFilesMatcher.matches()) {
                             for (int matchIndex = 1;
-                                 matchIndex < generateFilesMatcher.groupCount() + 1; matchIndex++) {
+                                    matchIndex < generateFilesMatcher.groupCount() + 1; matchIndex++) {
                                 deps.remoteWorkspaceDeps.add(generateFilesMatcher.group(matchIndex));
                             }
                         }
