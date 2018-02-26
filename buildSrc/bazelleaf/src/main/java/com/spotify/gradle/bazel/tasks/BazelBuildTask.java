@@ -5,7 +5,9 @@ import com.spotify.gradle.bazel.utils.BazelExecHelper;
 
 import org.gradle.api.plugins.BasePlugin;
 
-
+/**
+ * A variant of {@link BazelExecTaskBase} that performs a `bazel build` action.
+ */
 public class BazelBuildTask extends BazelExecTaskBase {
 
     @Override

@@ -15,6 +15,8 @@ import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.Dependency;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -31,9 +33,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import javax.annotation.Nullable;
-
 public class BazelLeafPlugin implements Plugin<Project> {
+    private static final Logger LOGGER = LoggerFactory.getLogger(BazelLeafPlugin.class);
 
     public void apply(final Project project) {
         project.getExtensions().create("bazel", BazelLeafConfig.class);
@@ -50,7 +51,7 @@ public class BazelLeafPlugin implements Plugin<Project> {
         DownloadBazelTask.injectDownloadTasks(project, config);
 
         if (!new File(config.bazelBin).exists()) {
-            System.out.println(String.format("Could not find Bazel binary at %s. Install Bazel on your machine, or set 'bazel.bin.path' value in your local.properties file.", config.bazelBin));
+            LOGGER.debug("Could not find Bazel binary at %s. Install Bazel on your machine, or set 'bazel.bin.path' value in your local.properties file.", config.bazelBin);
         } else {
             final Properties bazelInfo = BazelExecHelper.getInfo(config);
 
@@ -80,7 +81,7 @@ public class BazelLeafPlugin implements Plugin<Project> {
             final Deps targetDeps = getAllDepsFromBazel(aspectRunner, config.targetName);
             targetDeps.moduleDeps.stream().map(BazelLeafPlugin::convertLocalBazelDepToGradle).forEach(hatchejModel.getProjectDependencies()::add);
             targetDeps.remoteWorkspaceDeps.stream().map(bazelDep -> {
-                return convertExternalJarBazelLocalPath(config, bazelInfo, bazelDep);
+                return convertExternalJarBazelLocalPath(bazelInfo, bazelDep);
             }).forEach(hatchejModel.getLibraryDependencies()::add);
             /*
              * Creating a CLEAN task in the root project
@@ -118,13 +119,9 @@ public class BazelLeafPlugin implements Plugin<Project> {
         }
     }
 
-    private static String convertExternalJarBazelLocalPath(BazelLeafConfig.Decorated config,
+    private static String convertExternalJarBazelLocalPath(
             Properties bazelInfo,
             String pathToExternalFile) {
-        //converts
-        //external/com_google_guava_guava/jar/guava-20.0.jar
-        //to
-        //FULL_PATH_TO_REPO/build/bazel-build/bazel-leaf/external/com_google_guava_guava/jar/guava-20.0.jar
         return String.format("%s/%s", bazelInfo.getProperty("output_base"), pathToExternalFile);
     }
 
@@ -155,7 +152,8 @@ public class BazelLeafPlugin implements Plugin<Project> {
                     } else if (remoteWorkspaceMatcher.matches()) {
                         final Matcher generateFilesMatcher = generatedFilesPattern.matcher(remoteWorkspaceMatcher.group(1));
                         if (generateFilesMatcher.matches()) {
-                            for (int matchIndex = 1; matchIndex < generateFilesMatcher.groupCount() + 1; matchIndex++) {
+                            for (int matchIndex = 1;
+                                 matchIndex < generateFilesMatcher.groupCount() + 1; matchIndex++) {
                                 deps.remoteWorkspaceDeps.add(generateFilesMatcher.group(matchIndex));
                             }
                         }
@@ -173,7 +171,10 @@ public class BazelLeafPlugin implements Plugin<Project> {
         public final List<String> remoteWorkspaceDeps = new ArrayList<>();
     }
 
-    private static Set<File> getSourceFoldersFromBazelAspect(Project rootProject, AspectRunner runner, String targetName) {
+    private static Set<File> getSourceFoldersFromBazelAspect(
+            Project rootProject,
+            AspectRunner runner,
+            String targetName) {
         final Map<File, String> packageByFolder = new HashMap<>();
 
         return runner.getAspectResult("get_source_files.bzl", targetName).stream()
@@ -194,7 +195,7 @@ public class BazelLeafPlugin implements Plugin<Project> {
     //taken from https://github.com/bazelbuild/intellij/blob/master/aspect/tools/src/com/google/idea/blaze/aspect/PackageParser.java#L163
     private static final Pattern PACKAGE_PATTERN = Pattern.compile("^\\s*package\\s+([\\w\\.]+);$");
 
-    @Nullable
+    @javax.annotation.Nullable
     private static String parseDeclaredPackage(File sourceFile) {
         try (BufferedReader reader = new BufferedReader(new FileReader(sourceFile))) {
             String line;

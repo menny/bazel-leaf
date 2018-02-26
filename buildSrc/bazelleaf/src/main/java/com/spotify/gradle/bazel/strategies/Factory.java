@@ -2,9 +2,18 @@ package com.spotify.gradle.bazel.strategies;
 
 import com.spotify.gradle.bazel.BazelLeafConfig;
 
-import org.gradle.api.Project;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class Factory {
+/**
+ * Creates a {@link Strategy} to build Gradle bridges to the to provided Bazel rule.
+ */
+public final class Factory {
+    private static final Logger LOGGER = LoggerFactory.getLogger(Factory.class);
+
+    private Factory() {
+        /*this is a static factory*/
+    }
 
     public static Strategy buildStrategy(String kind, BazelLeafConfig.Decorated config) {
         switch (kind) {
@@ -16,7 +25,8 @@ public class Factory {
             case "android_local_test":
                 return new JavaTestStrategy(config);
             default:
-                System.out.println("Unsupported target kind " + kind + ". Currently, supporting java_library, java_test and android_library. Fix " + config.targetPath + ":" + config.targetName);
+                LOGGER.warn("Unsupported target kind '%s'. Currently, supporting java_library, java_test and android_library. Fix '%s:%s'",
+                        kind, config.targetPath, config.targetName);
                 return new PlainBuildStrategy(config);
         }
     }

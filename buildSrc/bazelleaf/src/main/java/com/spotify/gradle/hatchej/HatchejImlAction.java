@@ -12,7 +12,6 @@ import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Predicate;
@@ -24,7 +23,7 @@ import groovy.util.XmlParser;
 
 public class HatchejImlAction {
 
-    Logger logger = LoggerFactory.getLogger(getClass());
+    private static final Logger LOGGER = LoggerFactory.getLogger(HatchejImlAction.class);
 
     public void addLibraryFiles(final Project project, final HatchejModel hatchejModel)
             throws IOException {
@@ -79,7 +78,7 @@ public class HatchejImlAction {
             FileWriter fileWriter = new FileWriter(ideaLibraryFile);
             new XmlNodePrinter(new PrintWriter(fileWriter)).print(componentRootNode);
         } else {
-            logger.debug("IDEA library file {} already exists", ideaLibraryFile.getAbsolutePath());
+            LOGGER.debug("IDEA library file {} already exists", ideaLibraryFile.getAbsolutePath());
         }
     }
 
@@ -97,7 +96,7 @@ public class HatchejImlAction {
         if (!StringUtils.startsWith(path, prefix) && !StringUtils.endsWith(path, suffix)) {
             jarUrl = StringUtils.join(prefix, path, suffix);
         } else {
-            logger.warn("Unable to create the URL for the library {}", path);
+            LOGGER.warn("Unable to create the URL for the library {}", path);
         }
         return jarUrl;
     }
@@ -119,7 +118,9 @@ public class HatchejImlAction {
     public void modifyImlFile(final Project project, final HatchejModel hatchejModel)
             throws Exception {
         final File imlFile = new File(project.getProjectDir().getAbsoluteFile(), project.getName() + ".iml");
-        if (!imlFile.exists()) return;//not running within IntelliJ workspace
+        if (!imlFile.exists()) {
+            return; //not running within IntelliJ workspace
+        }
 
         final Node imlRootNode = new XmlParser().parse(imlFile);
 
@@ -154,35 +155,28 @@ public class HatchejImlAction {
      * @param path the path to convert
      * @return a converted path
      */
-    private String normalizePath(String path) {
-        return (path != null ? path.replace('/', '_').replace('-', '_').replace('.', '_') : null);
+    private static String normalizePath(String path) {
+        return path != null ? path.replace('/', '_').replace('-', '_').replace('.', '_') : null;
     }
 
-    private Node projectModuleNode(String path) {
+    private static Node projectModuleNode(String path) {
         //<orderEntry type="module" module-name="lib2" exported="" />
         HashMap<String, String> attributes = new HashMap<>(3);
         attributes.put("type", "module");
-        attributes.put("module-name", path.substring(1 + path.lastIndexOf(":")));
+        attributes.put("module-name", StringUtils.substringBefore(path, ":"));
         attributes.put("exported", "");
         return new Node(null, "orderEntry", attributes);
     }
 
-    private Node libraryModuleNode(String path) {
-        // <orderEntry type="library" exported="" name="_Users_abeggs_spotify_bazel_leaf_lib5_libs_menny_guava_99_0a_jar" level="project" />
-        HashMap<String, String> attributes = new LinkedHashMap<>(4);
-        attributes.put("type", "library");
-        attributes.put("name", path);
-        attributes.put("exported", "");
-        attributes.put("level", "project");
-        return new Node(null, "orderEntry", attributes);
-    }
-
-    private Node excludeContentFolderNode(Project project, File excludeFolder) {
+    private static Node excludeContentFolderNode(Project project, File excludeFolder) {
         ////<excludeFolder url="file://$MODULE_DIR$/.gradle" />
         return new Node(null, "excludeFolder", Collections.singletonMap("url", "file://$MODULE_DIR$" + excludeFolder.getAbsolutePath().substring(project.getProjectDir().getAbsolutePath().length())));
     }
 
-    private Node sourceContentFolderNode(Project project, File sourceFolder, boolean isTestFolder) {
+    private static Node sourceContentFolderNode(
+            Project project,
+            File sourceFolder,
+            boolean isTestFolder) {
         //<sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
         HashMap<String, String> attributes = new HashMap<>(2);
         attributes.put("url", "file://$MODULE_DIR$" + sourceFolder.getAbsolutePath().substring(project.getProjectDir().getAbsolutePath().length()));
@@ -190,7 +184,7 @@ public class HatchejImlAction {
         return new Node(null, "sourceFolder", attributes);
     }
 
-    private Node xmlPath(Node xmlNode, Predicate<Node>... finders) {
+    private static Node xmlPath(Node xmlNode, Predicate<Node>... finders) {
         Node value = xmlNode;
         for (Predicate<Node> finder : finders) {
             final Optional<Node> first = value.children().stream()
@@ -201,7 +195,6 @@ public class HatchejImlAction {
             } else {
                 throw new IllegalArgumentException("Could not find requested node at " + value.name() + ". There are " + Arrays.toString(value.children().toArray()));
             }
-
         }
         return value;
     }
