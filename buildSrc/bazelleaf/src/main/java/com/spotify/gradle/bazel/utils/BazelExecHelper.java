@@ -51,8 +51,8 @@ public final class BazelExecHelper {
                             ? Files.readAllLines(mProcessBuilder.redirectError().file().toPath())
                             : Collections.emptyList());
             if (exitCode != 0) {
-                result.getErrorOutput().forEach(log -> LOGGER.error("Bazel error: %s", log));
-                result.getStandardOutput().forEach(log -> LOGGER.error("Bazel std: %s", log));
+                result.getErrorOutput().forEach(log -> LOGGER.error("Bazel error: {}", log));
+                result.getStandardOutput().forEach(log -> LOGGER.error("Bazel std: {}", log));
                 throw new IOException("Got process exit code " + exitCode + " when running bazel " + toString());
             }
 

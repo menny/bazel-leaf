@@ -25,7 +25,7 @@ public final class Factory {
             case "android_local_test":
                 return new JavaTestStrategy(config);
             default:
-                LOGGER.warn("Unsupported target kind '%s'. Currently, supporting java_library, java_test and android_library. Fix '%s:%s'",
+                LOGGER.warn("Unsupported target kind '{}'. Currently, supporting java_library, java_test and android_library. Fix '{}:{}'",
                         kind, config.targetPath, config.targetName);
                 return new PlainBuildStrategy(config);
         }

@@ -52,7 +52,7 @@ public class BazelLeafPlugin implements Plugin<Project> {
 
         if (!checkIsBazelBinaryValid(config)) {
             if (downloadBazelBinTask != null) {
-                LOGGER.debug("Bazel binary at %s is invalid. Trying to download...", config.bazelBin);
+                LOGGER.debug("Bazel binary at {} is invalid. Trying to download...", config.bazelBin);
                 try {
                     downloadBazelBinTask.download();
                 } catch (IOException e) {
