@@ -13,16 +13,29 @@ import java.io.IOException;
  */
 public abstract class BazelExecTaskBase extends DefaultTask implements BazelConfigTask {
 
-    private BazelLeafConfig.Decorated mConfig;
+    protected BazelLeafConfig.Decorated mConfig;
+
+    protected final BazelExecHelper mBazelExecHelper;
+
+    protected BazelExecTaskBase() {
+        this(new BazelExecHelper());
+    }
+
+    protected BazelExecTaskBase(BazelExecHelper bazelExecHelper) {
+        mBazelExecHelper = bazelExecHelper;
+    }
 
     @TaskAction
     public void bazelExec() {
         BazelExecHelper.BazelExec bazelExec = createBazelExec(mConfig);
         try {
-            bazelExec.start();
+            onSuccessfulRun(bazelExec.start());
         } catch (IOException | InterruptedException e) {
-            throw new RuntimeException("Failed to clean using Bazel", e);
+            throw new RuntimeException("Failed to execute task using Bazel", e);
         }
+    }
+
+    protected void onSuccessfulRun(BazelExecHelper.RunResult runResult) {
     }
 
     protected abstract BazelExecHelper.BazelExec createBazelExec(BazelLeafConfig.Decorated config);

@@ -12,7 +12,7 @@ public final class Factory {
     private static final Logger LOGGER = LoggerFactory.getLogger(Factory.class);
 
     private Factory() {
-        /*this is a static factory*/
+        /*A utility class. No need to create instances.*/
     }
 
     public static Strategy buildStrategy(String kind, BazelLeafConfig.Decorated config) {

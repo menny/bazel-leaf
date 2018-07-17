@@ -1,10 +1,10 @@
 package com.spotify.gradle.bazel.tasks;
 
-import com.spotify.gradle.bazel.BazelLeafConfig;
+import com.spotify.gradle.bazel.utils.LoggerWithFlush;
+import com.spotify.gradle.bazel.utils.SystemEnvironment;
 
 import org.gradle.api.DefaultTask;
 import org.gradle.api.Project;
-import org.gradle.api.Task;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.wrapper.Download;
@@ -13,18 +13,62 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Locale;
-import java.util.Set;
 
 import static org.gradle.util.GUtil.map;
 
 /**
  * A Gradle task that download Bazel from the provided URL.
- * See {@link #injectDownloadTask(Project, BazelLeafConfig.Decorated)} for default usage.
+ * See {@link #injectDownloadTask(Project, String)} for default usage.
  */
 public class DownloadBazelTask extends DefaultTask {
 
+    private static final String DOWNLOAD_TASK_NAME = "downloadBazel";
     private File mTargetFile;
     private String mDownloadUrl;
+
+    /**
+     * Creates (if required) download tasks for the configured platforms.
+     * Essentially, will look at `gradle.properties` file, and will create a {@link DownloadBazelTask} for each configured
+     * platform (donated by `bazel.bin.url.linux`, `bazel.bin.url.macos` and `bazel.bin.url.windows`).
+     *
+     * @return null if injection did not take place (which means that the root-project already has a task named 'downloadBazel').
+     */
+    public static DownloadBazelTask injectDownloadTask(Project project, String pathToBazelBin) {
+        Project rootProject = project.getRootProject();
+
+        if (rootProject.getTasks().findByName(DOWNLOAD_TASK_NAME) == null) {
+            final Object urlPropertyName;
+            switch (SystemEnvironment.getOsType()) {
+                case macOs:
+                    urlPropertyName = rootProject.getProperties().get("bazel.bin.url.macos");
+                    break;
+                case Windows:
+                    urlPropertyName = rootProject.getProperties().get("bazel.bin.url.windows");
+                    break;
+                default:
+                    urlPropertyName = rootProject.getProperties().get("bazel.bin.url.linux");
+            }
+            return injectTask(rootProject, urlPropertyName, pathToBazelBin);
+        }
+
+        return null;
+    }
+
+    private static DownloadBazelTask injectTask(
+            Project rootProject,
+            Object urlValue,
+            String bazelBinPath) {
+        if (urlValue instanceof String && !((String) urlValue).isEmpty()) {
+            final String url = (String) urlValue;
+            final DownloadBazelTask downloadBazelTask = rootProject.getTasks().create(DOWNLOAD_TASK_NAME, DownloadBazelTask.class);
+            downloadBazelTask.setDownloadUrl(url);
+            downloadBazelTask.setTargetFile(new File(bazelBinPath));
+
+            return downloadBazelTask;
+        } else {
+            throw new IllegalArgumentException("The URL property to download Bazel is invalid. Value is " + urlValue);
+        }
+    }
 
     @Input
     public File getTargetFile() {
@@ -54,93 +98,32 @@ public class DownloadBazelTask extends DefaultTask {
             throw new NullPointerException("downloadUrl needs to be set!");
         }
 
-        if (!mTargetFile.getParentFile().exists() && !mTargetFile.getParentFile().mkdirs()) {
-            throw new IOException("Failed to create parent folder for " + mTargetFile.getAbsolutePath());
+        File canonicalFileTargetFile = mTargetFile.getCanonicalFile();
+        if (canonicalFileTargetFile.getParentFile() == null || (
+                !canonicalFileTargetFile.getParentFile().exists() && !canonicalFileTargetFile
+                        .getParentFile().mkdirs())) {
+            throw new IOException(
+                    "Failed to create parent folder for " + canonicalFileTargetFile.getAbsolutePath());
         }
 
         try {
-            final Download downloader = new Download(new DownloadProgressLogger(mDownloadUrl, mTargetFile.getAbsolutePath()), "bazel-leaf", "0.0.1");
-            downloader.download(URI.create(mDownloadUrl), mTargetFile);
+            final Download downloader = new Download(
+                    new DownloadProgressLogger(mDownloadUrl, canonicalFileTargetFile.getAbsolutePath()),
+                    "bazel-leaf", "0.0.1");
+            downloader.download(URI.create(mDownloadUrl), canonicalFileTargetFile);
 
             getAnt().invokeMethod("chmod", map(
-                    "file", mTargetFile,
+                    "file", canonicalFileTargetFile,
                     "perm", "+x"));
         } catch (Exception e) {
-            throw new RuntimeException("Failed to download Bazel to " + mTargetFile + "! This could be a target path issue.", e);
+            throw new RuntimeException("Failed to download Bazel to " + canonicalFileTargetFile
+                    + "! This could be a target path issue.", e);
         }
     }
 
-    /**
-     * Creates (if required) download tasks for the configured platforms.
-     * Essentially, will look at `gradle.properties` file, and will create a {@link DownloadBazelTask} for each configured
-     * platform (donated by `bazel.bin.url.linux`, `bazel.bin.url.macos` and `bazel.bin.url.windows`).
-     */
-    public static DownloadBazelTask injectDownloadTask(
-            Project project,
-            BazelLeafConfig.Decorated config) {
-        Project rootProject = project.getRootProject();
-
-        final String osName = System.getProperty("os.name", "none").toLowerCase(Locale.US);
-        final Object urlPropertyName;
-
-        if (osName.contains("mac") || osName.contains("darwin")) {
-            urlPropertyName = rootProject.getProperties().get("bazel.bin.url.macos");
-        } else if (osName.contains("win")) {
-            urlPropertyName = rootProject.getProperties().get("bazel.bin.url.windows");
-        } else {
-            urlPropertyName = rootProject.getProperties().get("bazel.bin.url.linux");
-        }
-
-        return injectTask(rootProject, urlPropertyName, config.bazelBin);
-    }
-
-    private static DownloadBazelTask injectTask(
-            Project rootProject,
-            Object urlValue,
-            String bazelBinPath) {
-        if (urlValue instanceof String && !((String) urlValue).isEmpty()) {
-            final String url = (String) urlValue;
-            final String downloadBazelTaskName = "downloadBazel";
-            final Set<Task> tasksByName = rootProject.getTasksByName(downloadBazelTaskName, false);
-            if (tasksByName.isEmpty()) {
-                final DownloadBazelTask downloadBazelTask = rootProject.getTasks().create(downloadBazelTaskName, DownloadBazelTask.class);
-                downloadBazelTask.setDownloadUrl(url);
-                downloadBazelTask.setTargetFile(new File(bazelBinPath));
-
-                return downloadBazelTask;
-            } else {
-                return (DownloadBazelTask) tasksByName.stream().findFirst().get();
-            }
-        }
-
-        return null;
-    }
-
-    private static class DownloadProgressLogger extends org.gradle.wrapper.Logger {
+    private static class DownloadProgressLogger extends LoggerWithFlush {
         private DownloadProgressLogger(String downloadUrl, String targetFile) {
-            super(false);
             append(String.format(Locale.US, "Downloading Bazel binary from %s to %s...", downloadUrl, targetFile));
-        }
-
-        @Override
-        public Appendable append(char c) {
-            super.append(c);
-            System.out.flush();
-            return this;
-        }
-
-        @Override
-        public Appendable append(CharSequence csq) {
-            super.append(csq);
-            System.out.flush();
-            return this;
-        }
-
-        @Override
-        public Appendable append(CharSequence csq, int start, int end) {
-            super.append(csq, start, end);
-            System.out.flush();
-            return this;
         }
     }
 }

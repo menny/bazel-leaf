@@ -22,9 +22,11 @@ public class AspectRunner {
 
     private final BazelLeafConfig.Decorated mConfig;
     private final File mAspectsFolder;
+    private final BazelExecHelper mBazelExecHelper;
 
-    public AspectRunner(BazelLeafConfig.Decorated config) {
+    public AspectRunner(BazelLeafConfig.Decorated config, BazelExecHelper bazelExecHelper) {
         mConfig = config;
+        mBazelExecHelper = bazelExecHelper;
         mAspectsFolder = new File("build/bazel_aspects/", mConfig.targetPath.replace("/", "_").replace(":", "_"));
         if (!mAspectsFolder.exists() && !mAspectsFolder.mkdirs()) {
             throw new IllegalStateException("Failed to create output folder for aspects at " + mAspectsFolder.getAbsolutePath());
@@ -38,29 +40,26 @@ public class AspectRunner {
     }
 
     public List<String> getAspectResult(String aspectRuleFileName, String target) {
-        try (InputStream resourceAsStream = BazelLeafPlugin.class.getClassLoader().getResourceAsStream("aspects/" + aspectRuleFileName)) {
+        try (InputStream resourceAsStream = BazelLeafPlugin.class.getClassLoader()
+                .getResourceAsStream("aspects/" + aspectRuleFileName)) {
             final File aspectRuleFile = new File(mAspectsFolder, aspectRuleFileName);
             try (OutputStream outputStream = new FileOutputStream(aspectRuleFile, false)) {
                 IOUtils.copy(resourceAsStream, outputStream);
             }
 
             String outputGroupArg = "--output_groups=" + NOOP_OUTPUT_GROUP;
-            BazelExecHelper.BazelExec builder = BazelExecHelper.createBazelRun(mConfig, target, "build", outputGroupArg, "--aspects", aspectRuleFile + "%print_aspect");
+            BazelExecHelper.BazelExec builder = mBazelExecHelper
+                    .createBazelRun(false, mConfig, target, "build", outputGroupArg, "--aspects",
+                            aspectRuleFile + "%print_aspect");
             //yes... Aspect output is on the error channel.
-            return cleanUp(builder.start().getErrorOutput(), aspectRuleFileName);
+            return cleanUp(builder.start().getExecutionOutput(), aspectRuleFileName);
         } catch (InterruptedException | IOException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private List<String> cleanUp(List<String> outputLines, String aspectRuleFileName) {
-        final Pattern pattern = Pattern.compile("^DEBUG.*" + aspectRuleFileName + ":\\d+:\\d+:\\s+(.+)\\s*$");
-        /*
-____Loading complete.  Analyzing...
-DEBUG: /Users/menny/dev/spotify/bazel-leaf/build/bazel_aspects/__lib2_jar/get_source_files.bzl:8:17: lib2/src/main/java/com/spotify/music/lib2/Lib2.java
-____Found 1 target...
-____Elapsed time: 0.126s, Critical Path: 0.00s
-         */
+    private static List<String> cleanUp(List<String> outputLines, String aspectRuleFileName) {
+        final Pattern pattern = Pattern.compile("^.*" + aspectRuleFileName + ":\\d+:\\d+:\\s+(.+)\\s*$");
         return outputLines.stream()
                 .map(pattern::matcher)
                 .filter(Matcher::matches)

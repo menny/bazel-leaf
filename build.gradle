@@ -1,19 +1,13 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
-apply plugin: "com.gradle.build-scan"
 apply plugin: 'idea'
 
 buildscript {
-
     repositories {
         google()
         jcenter()
-        maven {
-            url "https://plugins.gradle.org/m2/"
-        }
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:3.1.0-beta4'
-        classpath "com.gradle:build-scan-plugin:${gradleScanPluginVersion}"
+        classpath 'com.android.tools.build:gradle:3.1.3'
     }
 }
 
@@ -31,45 +25,4 @@ idea.module {
 
 task clean(type: Delete) {
     delete rootProject.buildDir
-}
-
-buildScan {
-    // The properties aren't loaded this early, so we need to manually load them up
-    // TODO(abeggs) This is missing the global Gradle properties!
-    def props = new Properties()
-    props.putAll(System.getProperties());
-    def gradlePropertiesFile = rootProject.file('gradle.properties')
-    if (gradlePropertiesFile.exists()) {
-        props.load(new FileInputStream(gradlePropertiesFile))
-    }
-
-    def localProperties = new Properties()
-    def localPropertiesFile = rootProject.file('local.properties')
-    if (localPropertiesFile.exists()) {
-        localProperties.load(new FileInputStream(localPropertiesFile))
-        props.putAll(localProperties);
-    }
-
-    licenseAgreementUrl = 'https://gradle.com/terms-of-service'
-    licenseAgree = 'yes'
-    server = 'https://real-gradle.spotify.net'
-
-    publishAlwaysIf(Boolean.parseBoolean(props.getProperty('gradle.build.scan.publish')));
-
-    value 'Project', rootProject.name
-
-    tag props.getProperty('os.name')
-
-    if (Boolean.parseBoolean(props.getProperty('artifactory.proxy'))) {
-        tag 'Artifactory Proxy'
-    }
-
-    if (props.getProperty('idea.platform.prefix')) {
-        tag props.getProperty('idea.platform.prefix')
-    }
-
-    if (props.getProperty('idea.paths.selector')) {
-        value 'IDE', props.getProperty('idea.paths.selector')
-    }
-
 }

@@ -1,5 +1,6 @@
 package com.spotify.gradle.bazel.tasks;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.spotify.gradle.bazel.BazelLeafConfig;
 import com.spotify.gradle.bazel.utils.BazelExecHelper;
 
@@ -8,9 +9,17 @@ import com.spotify.gradle.bazel.utils.BazelExecHelper;
  */
 public class BazelTestTask extends BazelExecTaskBase {
 
+    public BazelTestTask() {
+    }
+
+    @VisibleForTesting
+    BazelTestTask(BazelExecHelper bazelExecHelper) {
+        super(bazelExecHelper);
+    }
+
     @Override
     protected BazelExecHelper.BazelExec createBazelExec(BazelLeafConfig.Decorated config) {
-        return BazelExecHelper.createBazelRun(config, config.testTargetName, "test");
+        return mBazelExecHelper.createBazelRun(true, config, config.testTargetName, "test");
     }
 
     @Override

@@ -22,8 +22,9 @@ class PlainBuildStrategy implements Strategy {
 
     @Override
     public Task createBazelExecTask(Project project) {
-        final BazelBuildTask bazelBuildTask = (BazelBuildTask) project.task(Collections.singletonMap("type", BazelBuildTask.class), "compile");
+        final BazelBuildTask bazelBuildTask = (BazelBuildTask) project.task(Collections.singletonMap("type", BazelBuildTask.class), "compileJava");
         bazelBuildTask.setBazelConfig(mConfig);
+
         return bazelBuildTask;
     }
 

@@ -1,17 +1,48 @@
 package com.spotify.gradle.bazel;
 
+import com.spotify.gradle.bazel.utils.SystemEnvironment;
+
 import org.gradle.api.Project;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.Locale;
 import java.util.Properties;
 
 public class BazelLeafConfig {
 
+    /**
+     * first: user's home folder.
+     * second: project name.
+     * third: extension for OS.
+     */
+    private static final String DEFAULT_BIN_PATH_TEMPLATE = "%s/.bazel-leaf/%s/bazel%s";
     private String mTarget;
-
     private String mTestTarget;
+
+    public static String getBazelBinPath(Project project) {
+        final Properties properties = new Properties();
+        final File propertiesFile = project.getRootProject().file("local.properties");
+        if (propertiesFile.exists()) {
+            try (FileInputStream input = new FileInputStream(propertiesFile)) {
+                properties.load(input);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        return properties.getProperty("bazel.bin.path", getDefaultBazelBinPath(project));
+    }
+
+    private static String getDefaultBazelBinPath(Project project) {
+        return String.format(Locale.US, DEFAULT_BIN_PATH_TEMPLATE,
+                System.getProperty("user.home", "/usr/bin"),
+                project.getRootProject().getName(),
+                SystemEnvironment.OsType.Windows.equals(SystemEnvironment.getOsType())
+                        ? ".exe"
+                        : "");
+    }
 
     public String getTarget() {
         return mTarget;
@@ -36,22 +67,30 @@ public class BazelLeafConfig {
         return this;
     }
 
-    public Decorated decorate(Project project) {
+    public Decorated decorate(Project project, String bazelBinPath) {
         verifyConfigured();
 
         final String projectGradlePath = project.getPath();
         final String outputPath = projectGradlePath.replace(":", "/");
 
         return new Decorated(
-                getBazelBinPath(project),
+                bazelBinPath,
                 "/" + outputPath.replace(":", "/"),
-                mTarget,
-                mTestTarget,
+                getTarget(),
+                getTestTarget(),
                 project.getRootProject().getProjectDir(),
                 project.getRootProject().getBuildDir().getAbsolutePath() + "/bazel-build/");
     }
 
     public static class Decorated {
+
+        public final String bazelBin;
+        public final String targetPath;
+        public final String targetName;
+        public final File workspaceRootFolder;
+        public final String testTargetName;
+        public final String buildOutputDir;
+
         public Decorated(
                 String bazelBin,
                 String targetPath,
@@ -66,28 +105,5 @@ public class BazelLeafConfig {
             this.buildOutputDir = buildOutputDir;
             this.workspaceRootFolder = workspaceRootFolder;
         }
-
-        public final String bazelBin;
-        public final String targetPath;
-        public final String targetName;
-        public final File workspaceRootFolder;
-        public final String testTargetName;
-        public final String buildOutputDir;
-    }
-
-    private static final String DEFAULT_BIN_PATH = "/usr/local/bin/bazel";
-
-    private static String getBazelBinPath(Project project) {
-        final Properties properties = new Properties();
-        final File propertiesFile = project.getRootProject().file("local.properties");
-        if (propertiesFile.exists()) {
-            try (FileInputStream input = new FileInputStream(propertiesFile)) {
-                properties.load(input);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        return properties.getProperty("bazel.bin.path", DEFAULT_BIN_PATH);
     }
 }

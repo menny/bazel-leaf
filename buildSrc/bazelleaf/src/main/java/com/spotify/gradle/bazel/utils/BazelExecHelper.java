@@ -2,58 +2,57 @@ package com.spotify.gradle.bazel.utils;
 
 import com.spotify.gradle.bazel.BazelLeafConfig;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.Properties;
 
 /**
  * General utilities for executing actions with Bazel binary.
  */
-public final class BazelExecHelper {
-    private static final Logger LOGGER = LoggerFactory.getLogger(BazelExecHelper.class);
+public class BazelExecHelper {
 
-    private BazelExecHelper() {
-        /*A utility class. No need to create instances.*/
-    }
+    private static final LoggerWithFlush LOGGER = new LoggerWithFlush();
+    private static final Collection<String> BASIC_EXEC_ARGS = Arrays.asList("--curses=no", "--color=no", "--experimental_ui=no", "--progress_in_terminal_title=no");
 
     public static class BazelExec {
+        private final boolean mOutputToConsole;
         private final ProcessBuilder mProcessBuilder;
 
-        BazelExec(ProcessBuilder processBuilder) {
+        BazelExec(boolean outputToConsole, ProcessBuilder processBuilder) {
+            mOutputToConsole = outputToConsole;
             mProcessBuilder = processBuilder;
         }
 
-        public ProcessBuilder getProcessBuilder() {
-            return mProcessBuilder;
-        }
-
         public RunResult start() throws IOException, InterruptedException {
-            ensurePathExists(mProcessBuilder.redirectOutput().file());
-            ensurePathExists(mProcessBuilder.redirectError().file());
+            mProcessBuilder.redirectErrorStream(true);
+            final Process process = mProcessBuilder.start();
+            final InputStream processInputStream = process.getInputStream();
 
-            final int exitCode = mProcessBuilder.start().waitFor();
-            final RunResult result = new RunResult(exitCode,
-                    mProcessBuilder.redirectOutput().file().exists()
-                            ? Files.readAllLines(mProcessBuilder.redirectOutput().file().toPath())
-                            : Collections.emptyList(),
-                    mProcessBuilder.redirectError().file().exists()
-                            ? Files.readAllLines(mProcessBuilder.redirectError().file().toPath())
-                            : Collections.emptyList());
-            if (exitCode != 0) {
-                result.getErrorOutput().forEach(log -> LOGGER.error("Bazel error: {}", log));
-                result.getStandardOutput().forEach(log -> LOGGER.error("Bazel std: {}", log));
-                throw new IOException("Got process exit code " + exitCode + " when running bazel " + toString());
+            final StringBuilder stringBuilder = new StringBuilder();
+            int c;
+            while ((c = processInputStream.read()) != -1) {
+                if (mOutputToConsole) {
+                    LOGGER.append((char) c);
+                }
+                stringBuilder.append((char) c);
+            }
+            process.waitFor();
+
+            final RunResult result = new RunResult(process.exitValue(), Arrays.asList(stringBuilder.toString().split("\\r?\\n")));
+            if (result.getExitCode() != 0) {
+                if (!mOutputToConsole) {
+                    LOGGER.log(stringBuilder.toString());
+                }
+                throw new IOException("Got process exit code " + result.getExitCode() + " when running bazel " + toString());
             }
 
             return result;
@@ -61,63 +60,72 @@ public final class BazelExecHelper {
 
         @Override
         public String toString() {
-            return "BazelExec: " + Arrays.toString(mProcessBuilder.command().toArray(new String[0])) + ". Output to " + mProcessBuilder.redirectError().file().getAbsolutePath();
+            return "BazelExec: " + Arrays.toString(mProcessBuilder.command().toArray(new String[0]));
         }
     }
 
     public static class RunResult {
         private final int mExitCode;
-        private final List<String> mStandardOutput;
-        private final List<String> mErrorOutput;
+        private final List<String> mOutput;
 
-        RunResult(int exitCode, List<String> standardOutput, List<String> errorOutput) {
+        public RunResult(int exitCode, List<String> executionOutput) {
             mExitCode = exitCode;
-            mStandardOutput = standardOutput;
-            mErrorOutput = errorOutput;
+            mOutput = executionOutput;
         }
 
         public int getExitCode() {
             return mExitCode;
         }
 
-        public List<String> getStandardOutput() {
-            return mStandardOutput;
-        }
-
-        public List<String> getErrorOutput() {
-            return mErrorOutput;
+        public List<String> getExecutionOutput() {
+            return mOutput;
         }
     }
 
-    public static BazelExec createBazelRun(
+    public BazelExec createBazelRun(
+            boolean outputToConsole,
             BazelLeafConfig.Decorated config,
             String target,
             String bazelCommand,
             String... args) {
-        ProcessBuilder builder = new ProcessBuilder();
-        ArrayList<String> execArgs = new ArrayList<>(Arrays.asList(config.bazelBin, bazelCommand, "--symlink_prefix=" + config.buildOutputDir));
+        List<String> execArgs = new ArrayList<>();
+        execArgs.add("--symlink_prefix=" + config.buildOutputDir);
         if (target != null && !target.isEmpty()) {
-            execArgs.add(config.targetPath + ":" + target);
+            execArgs.add(config.targetPath + ':' + target);
         }
         execArgs.addAll(Arrays.asList(args));
-        builder.command(execArgs);
-        builder.directory(config.workspaceRootFolder);
 
-        builder.redirectOutput(new File(config.buildOutputDir, config.targetPath + "/runner_" + bazelCommand + "/" + target + ".txt"));
-        builder.redirectError(new File(config.buildOutputDir, config.targetPath + "/runner_" + bazelCommand + "/" + target + ".err"));
-
-        return new BazelExec(builder);
+        return createBazelRun(outputToConsole, config.bazelBin, config.workspaceRootFolder, bazelCommand, execArgs);
     }
 
-    public static Properties getInfo(BazelLeafConfig.Decorated config) {
+    public BazelExec createBazelRun(
+            boolean outputToConsole,
+            String bazelBinPath,
+            File workspaceRootFolder,
+            String bazelCommand,
+            List<String> args) {
+        final ProcessBuilder builder = new ProcessBuilder();
+        final List<String> execArgs = new ArrayList<>(1 + BASIC_EXEC_ARGS.size() + 1 + args.size());
+        execArgs.add(bazelBinPath);
+        execArgs.add(bazelCommand);
+        execArgs.addAll(BASIC_EXEC_ARGS);
+        execArgs.addAll(args);
+
+        builder.command(execArgs);
+        builder.directory(workspaceRootFolder);
+
+        return new BazelExec(outputToConsole, builder);
+    }
+
+    public Properties getInfo(BazelLeafConfig.Decorated config) {
+        BazelExec infoExec = createBazelRun(false, config, "", "info");
         try {
-            BazelExec infoExec = createBazelRun(config, "", "info");
-            RunResult start = infoExec.start();
+            RunResult runResult = infoExec.start();
 
             StringWriter w = new StringWriter();
             PrintWriter b = new PrintWriter(w);
 
-            start.getStandardOutput().forEach(b::println);
+            runResult.getExecutionOutput().forEach(b::println);
 
             b.close();
 
@@ -125,14 +133,8 @@ public final class BazelExecHelper {
             properties.load(new StringReader(w.toString()));
             return properties;
         } catch (InterruptedException | IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private static void ensurePathExists(File outputFile) throws IOException {
-        final File parentFile = outputFile.getParentFile();
-        if (!parentFile.exists() && !parentFile.mkdirs()) {
-            throw new IOException("Failed to create output folder for " + outputFile.getAbsolutePath());
+            LOGGER.log(String.format(Locale.US, "Failed to get information from Bazel. Error: %s", e.getMessage()));
+            return null;
         }
     }
 }
